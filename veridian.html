@@ -935,7 +935,64 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setClearColor(0xd4e8ed, 1);
+        renderer.xr.enabled = true; // Enable WebXR
         document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // === SIMPLE GUARANTEED VR BUTTON ===
+        // Create button IMMEDIATELY - no checks, no delays
+        const vrButton = document.createElement('button');
+        vrButton.innerHTML = 'ENTER VR';
+        vrButton.style.cssText = `
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            z-index: 999999 !important;
+            background: white !important;
+            border: 5px solid #00ff00 !important;
+            color: black !important;
+            font-size: 40px !important;
+            padding: 40px 80px !important;
+            cursor: pointer !important;
+            display: block !important;
+            font-weight: bold !important;
+        `;
+        document.body.appendChild(vrButton);
+        console.log('VR button added to page');
+
+        // Simple click handler
+        vrButton.onclick = async function() {
+            console.log('VR button clicked!');
+            try {
+                const session = await navigator.xr.requestSession('immersive-vr');
+                await renderer.xr.setSession(session);
+                vrButton.style.display = 'none';
+                console.log('Entered VR!');
+                
+                session.addEventListener('end', () => {
+                    vrButton.style.display = 'block';
+                    console.log('Exited VR');
+                });
+            } catch(e) {
+                alert('VR Error: ' + e.message);
+                console.error('VR error:', e);
+            }
+        };
+
+        // Also add diagnostic info
+        const diagDiv = document.createElement('div');
+        diagDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: black;
+            color: lime;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 999998;
+        `;
+        diagDiv.innerHTML = 'WebXR: ' + ('xr' in navigator ? 'YES' : 'NO');
+        document.body.appendChild(diagDiv);
 
         // === WEB AUDIO API SETUP ===
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -2238,8 +2295,6 @@
 
         // === ANIMATION LOOP ===
         function animate() {
-            requestAnimationFrame(animate);
-
             // Movement
             const forward = new THREE.Vector3(Math.sin(cameraRotation.y), 0, Math.cos(cameraRotation.y));
             const right = new THREE.Vector3(Math.cos(cameraRotation.y), 0, -Math.sin(cameraRotation.y));
@@ -2269,8 +2324,11 @@
                 isAscending = false;
             }
 
-            camera.rotation.y = cameraRotation.y;
-            camera.rotation.x = cameraRotation.x;
+            // Only apply manual rotation if not in VR mode
+            if (!renderer.xr.isPresenting) {
+                camera.rotation.y = cameraRotation.y;
+                camera.rotation.x = cameraRotation.x;
+            }
 
             // Update state indicator
             const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
@@ -2459,7 +2517,7 @@
         });
 
         // === START ===
-        animate();
+        renderer.setAnimationLoop(animate);
         updateEntityCount();
     </script>
 </body>
