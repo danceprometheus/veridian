@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVN: VERIDIAN - Hall of Clarity</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            overflow: hidden;
+            background: #000;
+            color: #e8f4f8;
+            cursor: crosshair;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* HUD System */
+        .hud {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+        
+        .top-hud {
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .logo {
+            font-family: 'Cinzel', serif;
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            color: #d4e8ed;
+            text-shadow: 0 0 20px rgba(212, 232, 237, 0.3);
+            opacity: 0;
+            animation: fadeIn 2s ease-out 0.5s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .hall-name {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+        
+        .stats {
+            background: rgba(15, 30, 40, 0.85);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 20px 25px;
+            backdrop-filter: blur(10px);
+            min-width: 220px;
+        }
+        
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        
+        .stat-label {
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            color: #d4e8ed;
+            font-family: 'Cinzel', serif;
+        }
+        
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 30, 40, 0.9);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 25px 35px;
+            backdrop-filter: blur(10px);
+            pointer-events: all;
+            max-width: 900px;
+            opacity: 0;
+            animation: slideUp 1s ease-out 1s forwards;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        .controls-title {
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+        
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+        
+        .key {
+            background: rgba(212, 232, 237, 0.15);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            color: #d4e8ed;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 2px;
+            min-width: 35px;
+            text-align: center;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+        
+        .control-desc {
+            opacity: 0.8;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(212, 232, 237, 0.2);
+        }
+        
+        button {
+            background: rgba(212, 232, 237, 0.1);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            color: #d4e8ed;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 10px 20px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            pointer-events: all;
+        }
+        
+        button:hover {
+            background: rgba(212, 232, 237, 0.2);
+            border-color: rgba(212, 232, 237, 0.5);
+            box-shadow: 0 0 20px rgba(212, 232, 237, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        /* Minimap */
+        .minimap {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 200px;
+            height: 200px;
+            background: rgba(15, 30, 40, 0.9);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 15px;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .minimap-title {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            margin-bottom: 10px;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+        }
+
+        #minimap-canvas {
+            width: 100%;
+            height: calc(100% - 25px);
+            border-radius: 1px;
+        }
+
+        /* Messages */
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 30, 40, 0.95);
+            border: 1px solid rgba(212, 232, 237, 0.4);
+            border-radius: 2px;
+            padding: 30px 50px;
+            font-size: 18px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(212, 232, 237, 0.3);
+            animation: messageAppear 0.4s ease-out;
+            pointer-events: all;
+            z-index: 200;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 2px;
+            max-width: 500px;
+        }
+        
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a1520 0%, #152535 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 1s ease-out;
+        }
+        
+        .loading-text {
+            font-family: 'Cinzel', serif;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            letter-spacing: 6px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            opacity: 0.6;
+            letter-spacing: 2px;
+            margin-top: -10px;
+        }
+        
+        .progress-bar {
+            width: 300px;
+            height: 2px;
+            background: rgba(212, 232, 237, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 40px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: rgba(212, 232, 237, 0.6);
+            width: 0%;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 10px rgba(212, 232, 237, 0.4);
+        }
+
+        /* Ambient Effects */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+            z-index: 1;
+        }
+
+        /* NFT Gallery Upload */
+        .nft-upload-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 30, 40, 0.95);
+            border: 1px solid rgba(212, 232, 237, 0.4);
+            border-radius: 2px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            pointer-events: all;
+            z-index: 300;
+            max-width: 500px;
+            width: 90%;
+            display: none;
+        }
+
+        .nft-upload-panel.active {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .panel-title {
+            font-family: 'Cinzel', serif;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .panel-subtitle {
+            font-size: 13px;
+            opacity: 0.7;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(212, 232, 237, 0.5);
+            background: rgba(212, 232, 237, 0.05);
+        }
+
+        .upload-zone.dragover {
+            border-color: rgba(212, 232, 237, 0.8);
+            background: rgba(212, 232, 237, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 11px;
+            opacity: 0.5;
+            font-style: italic;
+        }
+
+        #nft-file-input {
+            display: none;
+        }
+
+        /* Media Type Selector */
+        .media-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(212, 232, 237, 0.05);
+            border-radius: 2px;
+        }
+
+        .media-type-btn {
+            flex: 1;
+            background: rgba(212, 232, 237, 0.1);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            color: #d4e8ed;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            font-size: 11px;
+            padding: 10px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        .media-type-btn:hover {
+            opacity: 0.8;
+        }
+
+        .media-type-btn.active {
+            background: rgba(212, 232, 237, 0.25);
+            border-color: rgba(212, 232, 237, 0.6);
+            opacity: 1;
+        }
+
+        .model-viewer {
+            width: 100%;
+            height: 200px;
+            background: rgba(212, 232, 237, 0.05);
+            border: 1px solid rgba(212, 232, 237, 0.2);
+            border-radius: 2px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .nft-input-group {
+            margin-bottom: 20px;
+        }
+
+        .nft-label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            opacity: 0.7;
+            margin-bottom: 8px;
+            font-family: 'Cinzel', serif;
+        }
+
+        .nft-input {
+            width: 100%;
+            background: rgba(212, 232, 237, 0.05);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 12px;
+            color: #e8f4f8;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nft-input:focus {
+            outline: none;
+            border-color: rgba(212, 232, 237, 0.6);
+            background: rgba(212, 232, 237, 0.08);
+        }
+
+        .nft-input::placeholder {
+            color: rgba(232, 244, 248, 0.4);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            background: rgba(212, 232, 237, 0.2);
+            border: 1px solid rgba(212, 232, 237, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: rgba(212, 232, 237, 0.3);
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: transparent;
+            border: 1px solid rgba(212, 232, 237, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(212, 232, 237, 0.1);
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            margin-top: 15px;
+            border-radius: 2px;
+            border: 1px solid rgba(212, 232, 237, 0.2);
+        }
+
+        .gallery-info {
+            position: fixed;
+            bottom: 220px;
+            right: 40px;
+            background: rgba(15, 30, 40, 0.9);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 15px 20px;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Music Upload Panel */
+        .music-upload-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 30, 40, 0.95);
+            border: 1px solid rgba(212, 232, 237, 0.4);
+            border-radius: 2px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            pointer-events: all;
+            z-index: 300;
+            max-width: 500px;
+            width: 90%;
+            display: none;
+        }
+
+        .music-upload-panel.active {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        .audio-preview {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(212, 232, 237, 0.05);
+            border: 1px solid rgba(212, 232, 237, 0.2);
+            border-radius: 2px;
+            display: none;
+        }
+
+        .audio-preview.active {
+            display: block;
+        }
+
+        .audio-info {
+            font-size: 13px;
+            margin-bottom: 12px;
+            opacity: 0.9;
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(212, 232, 237, 0.2);
+            border: 1px solid rgba(212, 232, 237, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+
+        .play-btn:hover {
+            background: rgba(212, 232, 237, 0.3);
+        }
+
+        .waveform {
+            flex: 1;
+            height: 40px;
+            background: rgba(212, 232, 237, 0.1);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .waveform-progress {
+            height: 100%;
+            background: rgba(212, 232, 237, 0.3);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .slider-group {
+            margin: 20px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            opacity: 0.7;
+            margin-bottom: 10px;
+            font-family: 'Cinzel', serif;
+        }
+
+        .slider {
+            width: 100%;
+            height: 2px;
+            background: rgba(212, 232, 237, 0.2);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: rgba(212, 232, 237, 0.8);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: rgba(212, 232, 237, 1);
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: rgba(212, 232, 237, 0.8);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .slider::-moz-range-thumb:hover {
+            background: rgba(212, 232, 237, 1);
+            transform: scale(1.2);
+        }
+
+        /* Music Sources in World */
+        .music-info {
+            position: fixed;
+            bottom: 260px;
+            right: 40px;
+            background: rgba(15, 30, 40, 0.9);
+            border: 1px solid rgba(212, 232, 237, 0.3);
+            border-radius: 2px;
+            padding: 15px 20px;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            font-family: 'Cinzel', serif;
+        }
+
+        .music-hint {
+            font-size: 10px;
+            opacity: 0.5;
+            font-style: italic;
+            margin-top: 15px;
+            text-align: center;
+            text-transform: none;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-text">VERIDIAN</div>
+        <div class="loading-subtext">The Hall of Clarity</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+    </div>
+
+    <div class="vignette"></div>
+    <div id="canvas-container"></div>
+    
+    <div class="hud top-hud">
+        <div>
+            <div class="logo">VERIDIAN</div>
+            <div class="hall-name">The Hall of Clarity</div>
+        </div>
+        <div class="stats">
+            <div class="stat-line">
+                <span class="stat-label">Position</span>
+                <span class="stat-value" id="coords">0, 0, 0</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">Entities</span>
+                <span class="stat-value" id="entities">0</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">Time</span>
+                <span class="stat-value" id="time-display">Dawn</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">State</span>
+                <span class="stat-value" id="status">Observing</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="minimap">
+        <div class="minimap-title">Spatial Map</div>
+        <canvas id="minimap-canvas" width="170" height="150"></canvas>
+    </div>
+
+    <div class="gallery-info">
+        <div>Gallery: <span id="gallery-count">0</span> Artworks</div>
+    </div>
+
+    <div class="music-info">
+        <div>Music Sources: <span id="music-count">0</span></div>
+    </div>
+
+    <div class="music-upload-panel" id="music-panel">
+        <div class="panel-title">Manifest Sound</div>
+        <div class="panel-subtitle">
+            Upload music to place within Veridian as a spatial sound source.
+            The music will emanate from a crystalline resonator in 3D space.
+        </div>
+
+        <div class="upload-zone" id="music-upload-zone">
+            <div class="upload-icon">♪</div>
+            <div class="upload-text">Click or drag audio file here</div>
+            <div class="upload-hint">MP3, WAV, OGG, or M4A • Max 100MB</div>
+            <input type="file" id="music-file-input" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg,audio/x-m4a">
+        </div>
+
+        <div class="audio-preview" id="audio-preview">
+            <div class="audio-info" id="audio-info"></div>
+            <div class="audio-controls">
+                <div class="play-btn" id="preview-play">▶</div>
+                <div class="waveform">
+                    <div class="waveform-progress" id="preview-progress"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nft-input-group">
+            <label class="nft-label">Track Title</label>
+            <input type="text" class="nft-input" id="music-title" placeholder="Enter track name...">
+        </div>
+
+        <div class="nft-input-group">
+            <label class="nft-label">Artist Name (Optional)</label>
+            <input type="text" class="nft-input" id="music-artist" placeholder="Artist or composer...">
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-label">
+                <span>Volume</span>
+                <span id="volume-value">80%</span>
+            </div>
+            <input type="range" class="slider" id="volume-slider" min="0" max="100" value="80">
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-label">
+                <span>Spatial Range</span>
+                <span id="range-value">50m</span>
+            </div>
+            <input type="range" class="slider" id="range-slider" min="10" max="100" value="50">
+        </div>
+
+        <div class="music-hint">
+            Music will play in 3D space with distance-based attenuation.
+            Walk closer to hear more clearly, further to fade.
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="placeMusicSource()">Place in Hall</button>
+            <button class="btn-secondary" onclick="closeMusicPanel()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="nft-upload-panel" id="nft-panel">
+        <div class="panel-title">Manifest Artwork</div>
+        <div class="panel-subtitle">
+            Upload images, animations, videos, or 3D models to display within Veridian. 
+            Each piece will be mounted on a floating crystal frame.
+        </div>
+
+        <div class="media-type-selector">
+            <button class="media-type-btn active" data-type="image" onclick="selectMediaType('image')">Image</button>
+            <button class="media-type-btn" data-type="animation" onclick="selectMediaType('animation')">Animation</button>
+            <button class="media-type-btn" data-type="video" onclick="selectMediaType('video')">Video</button>
+            <button class="media-type-btn" data-type="3d" onclick="selectMediaType('3d')">3D Model</button>
+        </div>
+
+        <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">◇</div>
+            <div class="upload-text" id="upload-text">Click or drag image here</div>
+            <div class="upload-hint" id="upload-hint">PNG, JPG, WEBP • Max 10MB</div>
+            <input type="file" id="nft-file-input" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+        </div>
+
+        <div id="preview-container"></div>
+
+        <div class="nft-input-group">
+            <label class="nft-label">Artwork Title</label>
+            <input type="text" class="nft-input" id="nft-title" placeholder="Enter artwork name...">
+        </div>
+
+        <div class="nft-input-group">
+            <label class="nft-label">Artist Name (Optional)</label>
+            <input type="text" class="nft-input" id="nft-artist" placeholder="Your name or pseudonym...">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="placeArtwork()">Place in Hall</button>
+            <button class="btn-secondary" onclick="closeNFTPanel()">Cancel</button>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="controls-title">Navigation System</div>
+        <div class="control-grid">
+            <div class="control-item">
+                <div class="key">W</div>
+                <div class="control-desc">Move Forward</div>
+            </div>
+            <div class="control-item">
+                <div class="key">S</div>
+                <div class="control-desc">Move Back</div>
+            </div>
+            <div class="control-item">
+                <div class="key">A</div>
+                <div class="control-desc">Move Left</div>
+            </div>
+            <div class="control-item">
+                <div class="key">D</div>
+                <div class="control-desc">Move Right</div>
+            </div>
+            <div class="control-item">
+                <div class="key">SPACE</div>
+                <div class="control-desc">Ascend</div>
+            </div>
+            <div class="control-item">
+                <div class="key">MOUSE</div>
+                <div class="control-desc">Look Around</div>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button onclick="teleportRandom()">Teleport</button>
+            <button onclick="spawnEntity()">Manifest Entity</button>
+            <button onclick="openNFTPanel()">Upload Artwork</button>
+            <button onclick="openMusicPanel()">Upload Music</button>
+            <button onclick="changeTime()">Shift Time</button>
+            <button onclick="toggleControls()">Hide Interface</button>
+        </div>
+    </div>
+
+    <script>
+        // === CORE SETUP ===
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0xd4e8ed, 0.008);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setClearColor(0xd4e8ed, 1);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // === WEB AUDIO API SETUP ===
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
+        const listener = new THREE.AudioListener();
+        camera.add(listener);
+
+        // === LIGHTING (VERIDIAN: CLARITY) ===
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(50, 100, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.camera.left = -150;
+        sunLight.shadow.camera.right = 150;
+        sunLight.shadow.camera.top = 150;
+        sunLight.shadow.camera.bottom = -150;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        scene.add(sunLight);
+
+        // Subtle accent lights for Veridian
+        const accentLight1 = new THREE.PointLight(0xd4e8ed, 1.5, 80);
+        accentLight1.position.set(30, 15, 30);
+        scene.add(accentLight1);
+
+        const accentLight2 = new THREE.PointLight(0xa8c5d1, 1.5, 80);
+        accentLight2.position.set(-30, 15, -30);
+        scene.add(accentLight2);
+
+        // === GROUND (REFLECTIVE, MINIMAL) ===
+        const groundGeometry = new THREE.PlaneGeometry(400, 400, 60, 60);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0xf5f9fa,
+            metalness: 0.1,
+            roughness: 0.8,
+            flatShading: false
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        
+        // Subtle terrain variation
+        const vertices = ground.geometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const x = vertices[i];
+            const y = vertices[i + 1];
+            vertices[i + 2] = Math.sin(x * 0.05) * Math.cos(y * 0.05) * 0.5;
+        }
+        ground.geometry.attributes.position.needsUpdate = true;
+        ground.geometry.computeVertexNormals();
+        
+        scene.add(ground);
+
+        // Grid overlay (clarity/precision)
+        const gridHelper = new THREE.GridHelper(400, 100, 0xd4e8ed, 0xe8f1f4);
+        gridHelper.position.y = 0.05;
+        gridHelper.material.opacity = 0.3;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
+        // === STRUCTURES (HARMONIC ARCHITECTURE) ===
+        const structures = [];
+        
+        function createStructure(x, z, type) {
+            let geometry, material;
+            
+            const veridianGlass = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.05,
+                transmission: 0.9,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            const veridianCrystal = new THREE.MeshStandardMaterial({
+                color: 0xe8f4f8,
+                metalness: 0.3,
+                roughness: 0.2,
+                emissive: 0xd4e8ed,
+                emissiveIntensity: 0.1
+            });
+            
+            if (type === 'tower') {
+                geometry = new THREE.BoxGeometry(4, 18, 4);
+                material = veridianGlass;
+            } else if (type === 'pyramid') {
+                geometry = new THREE.ConeGeometry(5, 15, 4);
+                material = veridianCrystal;
+            } else if (type === 'sphere') {
+                geometry = new THREE.SphereGeometry(4, 32, 32);
+                material = veridianGlass;
+            } else {
+                geometry = new THREE.OctahedronGeometry(4, 0);
+                material = veridianCrystal;
+            }
+            
+            const structure = new THREE.Mesh(geometry, material);
+            const height = geometry.parameters.height || 8;
+            structure.position.set(x, height / 2, z);
+            structure.castShadow = true;
+            structure.receiveShadow = true;
+            
+            scene.add(structure);
+            structures.push(structure);
+            return structure;
+        }
+
+        // Procedurally place structures based on harmonic patterns (432 Hz base)
+        const types = ['tower', 'pyramid', 'sphere', 'octahedron'];
+        const goldenRatio = 1.618033988749;
+        
+        for (let i = 0; i < 40; i++) {
+            const angle = i * goldenRatio * Math.PI * 2;
+            const radius = Math.sqrt(i) * 15;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            const type = types[i % types.length];
+            createStructure(x, z, type);
+        }
+
+        // === ARCHANGELS (FLOATING ENTITIES) ===
+        const entities = [];
+        
+        function createAngelGeometry() {
+            // Create an ethereal angel form using primitive geometry
+            const angelGroup = new THREE.Group();
+            
+            // Body (elongated cone for robe)
+            const bodyGeometry = new THREE.ConeGeometry(0.8, 3, 8);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf5f9fa,
+                metalness: 0.3,
+                roughness: 0.4,
+                emissive: 0xd4e8ed,
+                emissiveIntensity: 0.2
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = -0.5;
+            angelGroup.add(body);
+            
+            // Head (sphere)
+            const headGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+            const headMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: 0.2,
+                roughness: 0.3,
+                emissive: 0xe8f4f8,
+                emissiveIntensity: 0.3
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.3;
+            angelGroup.add(head);
+            
+            // Halo (torus)
+            const haloGeometry = new THREE.TorusGeometry(0.5, 0.05, 8, 16);
+            const haloMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0xffd700,
+                emissiveIntensity: 0.8
+            });
+            const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+            halo.position.y = 2.0;
+            halo.rotation.x = Math.PI / 2;
+            angelGroup.add(halo);
+            
+            // Wings (two large planes with curve)
+            const wingGeometry = new THREE.PlaneGeometry(2, 3, 4, 8);
+            const wingMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0.2,
+                transmission: 0.6,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            // Curve the wing geometry
+            const wingPositions = wingGeometry.attributes.position;
+            for (let i = 0; i < wingPositions.count; i++) {
+                const x = wingPositions.getX(i);
+                const y = wingPositions.getY(i);
+                const curve = Math.sin(Math.abs(x) * 0.5) * 0.3;
+                wingPositions.setZ(i, curve);
+            }
+            wingGeometry.attributes.position.needsUpdate = true;
+            wingGeometry.computeVertexNormals();
+            
+            // Left wing
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-1.2, 0.5, 0);
+            leftWing.rotation.y = Math.PI / 6;
+            angelGroup.add(leftWing);
+            
+            // Right wing
+            const rightWing = new THREE.Mesh(wingGeometry.clone(), wingMaterial);
+            rightWing.position.set(1.2, 0.5, 0);
+            rightWing.rotation.y = -Math.PI / 6;
+            angelGroup.add(rightWing);
+            
+            // Light particles around angel (small spheres)
+            for (let i = 0; i < 8; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                const angle = (i / 8) * Math.PI * 2;
+                particle.position.set(
+                    Math.cos(angle) * 1.5,
+                    Math.sin(angle * 2) * 0.5,
+                    Math.sin(angle) * 1.5
+                );
+                particle.userData.orbitAngle = angle;
+                angelGroup.add(particle);
+            }
+            
+            return angelGroup;
+        }
+        
+        function spawnEntity() {
+            const angel = createAngelGeometry();
+            
+            angel.position.set(
+                camera.position.x + (Math.random() - 0.5) * 30,
+                8 + Math.random() * 15,
+                camera.position.z + (Math.random() - 0.5) * 30
+            );
+            
+            angel.castShadow = true;
+            angel.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            angel.userData.velocity = {
+                x: (Math.random() - 0.5) * 0.1,
+                y: (Math.random() - 0.5) * 0.05,
+                z: (Math.random() - 0.5) * 0.1
+            };
+            
+            angel.userData.rotationSpeed = (Math.random() - 0.5) * 0.01;
+            angel.userData.wingSpeed = 0.5 + Math.random() * 0.5;
+            angel.userData.particlePhase = Math.random() * Math.PI * 2;
+            
+            scene.add(angel);
+            entities.push(angel);
+            updateEntityCount();
+            
+            showMessage('Angel manifested');
+        }
+
+        // Spawn initial entities
+        for (let i = 0; i < 12; i++) {
+            spawnEntity();
+        }
+
+        // === NFT GALLERY SYSTEM ===
+        const artworks = [];
+        let currentImageData = null;
+        let currentMediaType = 'image';
+
+        function selectMediaType(type) {
+            currentMediaType = type;
+            
+            // Update button states
+            document.querySelectorAll('.media-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.type === type) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update upload zone text and accepted file types
+            const uploadText = document.getElementById('upload-text');
+            const uploadHint = document.getElementById('upload-hint');
+            const fileInput = document.getElementById('nft-file-input');
+            
+            if (type === 'image') {
+                uploadText.textContent = 'Click or drag image here';
+                uploadHint.textContent = 'PNG, JPG, WEBP • Max 10MB';
+                fileInput.accept = 'image/png,image/jpeg,image/jpg,image/webp';
+            } else if (type === 'animation') {
+                uploadText.textContent = 'Click or drag animation here';
+                uploadHint.textContent = 'GIF, APNG • Max 20MB';
+                fileInput.accept = 'image/gif,image/apng';
+            } else if (type === 'video') {
+                uploadText.textContent = 'Click or drag video here';
+                uploadHint.textContent = 'MP4, WEBM • Max 100MB';
+                fileInput.accept = 'video/mp4,video/webm';
+            } else if (type === '3d') {
+                uploadText.textContent = 'Click or drag 3D model here';
+                uploadHint.textContent = 'GLB, GLTF • Max 30MB';
+                fileInput.accept = '.glb,.gltf';
+            }
+            
+            // Clear preview
+            document.getElementById('preview-container').innerHTML = '';
+            currentImageData = null;
+        }
+
+        function openNFTPanel() {
+            document.getElementById('nft-panel').classList.add('active');
+            selectMediaType('image'); // Reset to image by default
+        }
+
+        function closeNFTPanel() {
+            document.getElementById('nft-panel').classList.remove('active');
+            document.getElementById('nft-title').value = '';
+            document.getElementById('nft-artist').value = '';
+            document.getElementById('preview-container').innerHTML = '';
+            currentImageData = null;
+            currentMediaType = 'image';
+        }
+
+        // File upload handling
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('nft-file-input');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            // Auto-detect media type based on file
+            if (file.type.startsWith('video/')) {
+                selectMediaType('video');
+                console.log('Auto-detected: video');
+            } else if (file.type === 'image/gif' || file.type === 'image/apng') {
+                selectMediaType('animation');
+                console.log('Auto-detected: animation');
+            } else if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
+                selectMediaType('3d');
+                console.log('Auto-detected: 3D model');
+            } else if (file.type.startsWith('image/')) {
+                selectMediaType('image');
+                console.log('Auto-detected: image');
+            }
+            
+            // Check file size based on type
+            let maxSize = 10 * 1024 * 1024; // 10MB default
+            if (currentMediaType === 'animation') maxSize = 20 * 1024 * 1024;
+            if (currentMediaType === 'video') maxSize = 100 * 1024 * 1024; // Increased to 100MB
+            if (currentMediaType === '3d') maxSize = 30 * 1024 * 1024;
+            
+            console.log('File size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+            console.log('Max allowed:', (maxSize / 1024 / 1024).toFixed(2), 'MB');
+            
+            if (file.size > maxSize) {
+                showMessage('File too large. Max ' + (maxSize / 1024 / 1024) + 'MB');
+                return;
+            }
+
+            // Handle different media types
+            if (currentMediaType === 'image' || currentMediaType === 'animation') {
+                if (!file.type.startsWith('image/')) {
+                    showMessage('Please upload an image file');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentImageData = {
+                        type: currentMediaType,
+                        data: e.target.result,
+                        mimeType: file.type
+                    };
+                    
+                    // Show preview
+                    const previewContainer = document.getElementById('preview-container');
+                    previewContainer.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="Preview">`;
+                    
+                    // Auto-fill title
+                    if (!document.getElementById('nft-title').value) {
+                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+                        document.getElementById('nft-title').value = nameWithoutExt;
+                    }
+                };
+                reader.readAsDataURL(file);
+                
+            } else if (currentMediaType === 'video') {
+                if (!file.type.startsWith('video/')) {
+                    showMessage('Please upload a video file');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentImageData = {
+                        type: 'video',
+                        data: e.target.result,
+                        mimeType: file.type
+                    };
+                    
+                    // Show preview
+                    const previewContainer = document.getElementById('preview-container');
+                    previewContainer.innerHTML = `
+                        <video src="${e.target.result}" class="preview-image" controls muted loop>
+                            Your browser doesn't support video preview.
+                        </video>
+                    `;
+                    
+                    if (!document.getElementById('nft-title').value) {
+                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+                        document.getElementById('nft-title').value = nameWithoutExt;
+                    }
+                };
+                reader.readAsDataURL(file);
+                
+            } else if (currentMediaType === '3d') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentImageData = {
+                        type: '3d',
+                        data: e.target.result,
+                        fileName: file.name
+                    };
+                    
+                    // Show preview message
+                    const previewContainer = document.getElementById('preview-container');
+                    previewContainer.innerHTML = `
+                        <div class="model-viewer">
+                            3D Model: ${file.name}<br>
+                            Preview will render in Hall
+                        </div>
+                    `;
+                    
+                    if (!document.getElementById('nft-title').value) {
+                        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+                        document.getElementById('nft-title').value = nameWithoutExt;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function placeArtwork() {
+            if (!currentImageData) {
+                showMessage('Please select a file first');
+                return;
+            }
+
+            const title = document.getElementById('nft-title').value || 'Untitled';
+            const artist = document.getElementById('nft-artist').value || 'Anonymous';
+
+            createArtworkFrame(currentImageData, title, artist);
+            closeNFTPanel();
+            showMessage('Artwork placed in gallery');
+        }
+
+        function createArtworkFrame(mediaData, title, artist) {
+            console.log('Creating artwork frame:', title, 'Type:', mediaData.type);
+            
+            // Default frame size
+            let frameWidth = 8;
+            let frameHeight = 6;
+            const frameBorder = 0.3;
+            
+            // Create crystal frame
+            const frameGeometry = new THREE.BoxGeometry(
+                frameWidth + frameBorder * 2,
+                frameHeight + frameBorder * 2,
+                0.15
+            );
+            const frameMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.2,
+                roughness: 0.1,
+                transmission: 0.7,
+                transparent: true,
+                opacity: 0.4
+            });
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.castShadow = true;
+            frame.receiveShadow = true;
+
+            // Group for artwork + frame
+            const artworkGroup = new THREE.Group();
+            artworkGroup.add(frame);
+
+            // Position using golden angle FIRST
+            const angle = artworks.length * 0.618 * Math.PI * 2;
+            const radius = 20 + artworks.length * 5;
+            artworkGroup.position.set(
+                camera.position.x + Math.cos(angle) * radius,
+                6 + Math.random() * 6,
+                camera.position.z + Math.sin(angle) * radius
+            );
+            artworkGroup.rotation.y = angle + Math.PI;
+
+            // Add metadata
+            artworkGroup.userData = {
+                title: title,
+                artist: artist,
+                mediaType: mediaData.type,
+                velocity: {
+                    y: (Math.random() - 0.5) * 0.03,
+                    rotation: (Math.random() - 0.5) * 0.005
+                }
+            };
+
+            // Add to scene IMMEDIATELY so frame is visible
+            scene.add(artworkGroup);
+            artworks.push(artworkGroup);
+            updateGalleryCount();
+
+            // Now load content based on type
+            if (mediaData.type === 'image' || mediaData.type === 'animation') {
+                const textureLoader = new THREE.TextureLoader();
+                const texture = textureLoader.load(mediaData.data, function(tex) {
+                    // Texture loaded successfully
+                    const img = tex.image;
+                    const aspectRatio = img.width / img.height;
+                    frameWidth = Math.min(8, aspectRatio * 6);
+                    frameHeight = frameWidth / aspectRatio;
+
+                    // Create artwork plane
+                    const artworkGeometry = new THREE.PlaneGeometry(frameWidth, frameHeight);
+                    const artworkMaterial = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide,
+                        metalness: 0.1,
+                        roughness: 0.3
+                    });
+                    const artwork = new THREE.Mesh(artworkGeometry, artworkMaterial);
+                    artwork.position.z = 0.1;
+                    artworkGroup.add(artwork);
+
+                    // Update frame size
+                    frame.geometry.dispose();
+                    frame.geometry = new THREE.BoxGeometry(
+                        frameWidth + frameBorder * 2,
+                        frameHeight + frameBorder * 2,
+                        0.15
+                    );
+                    
+                    console.log('Image/Animation loaded:', title);
+                });
+                
+            } else if (mediaData.type === 'video') {
+                console.log('Creating video element for:', title);
+                console.log('Video MIME type:', mediaData.mimeType);
+                console.log('Data URL length:', mediaData.data.length);
+                console.log('Data URL prefix:', mediaData.data.substring(0, 100));
+                
+                // Check if browser supports this video type
+                const testVideo = document.createElement('video');
+                const canPlay = testVideo.canPlayType(mediaData.mimeType);
+                console.log('Browser canPlayType("' + mediaData.mimeType + '"):', canPlay);
+                
+                if (canPlay === '') {
+                    console.error('❌ Browser reports it CANNOT play this video type');
+                    showMessage('Video format not supported by your browser. Try MP4 H.264');
+                }
+                
+                // Create video element
+                const video = document.createElement('video');
+                video.crossOrigin = 'anonymous';
+                video.loop = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.autoplay = true;
+                
+                // Use source element for better codec support
+                const source = document.createElement('source');
+                source.src = mediaData.data;
+                source.type = mediaData.mimeType;
+                video.appendChild(source);
+                
+                console.log('Video element created, source attached');
+                
+                // Error handling
+                video.addEventListener('error', (e) => {
+                    console.error('=== VIDEO ERROR ===');
+                    console.error('Event:', e);
+                    if (video.error) {
+                        console.error('Error code:', video.error.code);
+                        console.error('Error message:', video.error.message);
+                        
+                        // Explain error codes
+                        const errorMessages = {
+                            1: 'MEDIA_ERR_ABORTED - Video loading aborted',
+                            2: 'MEDIA_ERR_NETWORK - Network error while loading',
+                            3: 'MEDIA_ERR_DECODE - Video codec not supported or file corrupted',
+                            4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Video format not supported by browser'
+                        };
+                        
+                        const errorMsg = errorMessages[video.error.code] || 'Unknown error';
+                        console.error('Explanation:', errorMsg);
+                        
+                        if (video.error.code === 3) {
+                            showMessage('Video file corrupted or codec not supported. Try re-encoding as MP4 H.264');
+                        } else if (video.error.code === 4) {
+                            showMessage('Video format not supported. Convert to MP4 with H.264 codec');
+                        } else {
+                            showMessage('Error loading video: ' + errorMsg);
+                        }
+                    }
+                });
+                
+                source.addEventListener('error', (e) => {
+                    console.error('=== SOURCE ERROR ===');
+                    console.error('Source error event:', e);
+                    console.error('Source src:', source.src.substring(0, 100));
+                    console.error('Source type:', source.type);
+                    
+                    // Try to get more info
+                    if (e.target && e.target.error) {
+                        console.error('Target error:', e.target.error);
+                    }
+                });
+                
+                // Create video texture immediately
+                const videoTexture = new THREE.VideoTexture(video);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                videoTexture.format = THREE.RGBFormat;
+                
+                // Create artwork plane with default size first
+                let artworkGeometry = new THREE.PlaneGeometry(frameWidth, frameHeight);
+                const artworkMaterial = new THREE.MeshStandardMaterial({
+                    map: videoTexture,
+                    side: THREE.DoubleSide,
+                    metalness: 0.1,
+                    roughness: 0.3
+                });
+                const artwork = new THREE.Mesh(artworkGeometry, artworkMaterial);
+                artwork.position.z = 0.1;
+                artworkGroup.add(artwork);
+                
+                console.log('Video artwork mesh added to group');
+                
+                // Update size when metadata loads
+                video.addEventListener('loadedmetadata', () => {
+                    console.log('✓ Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
+                    
+                    const aspectRatio = video.videoWidth / video.videoHeight;
+                    frameWidth = Math.min(8, aspectRatio * 6);
+                    frameHeight = frameWidth / aspectRatio;
+
+                    // Update artwork geometry
+                    artwork.geometry.dispose();
+                    artwork.geometry = new THREE.PlaneGeometry(frameWidth, frameHeight);
+
+                    // Update frame size
+                    frame.geometry.dispose();
+                    frame.geometry = new THREE.BoxGeometry(
+                        frameWidth + frameBorder * 2,
+                        frameHeight + frameBorder * 2,
+                        0.15
+                    );
+                    
+                    console.log('✓ Video dimensions updated');
+                });
+
+                // Store video for playback control
+                artworkGroup.userData.video = video;
+                
+                // Try to load and play
+                video.load();
+                video.play().then(() => {
+                    console.log('✓ Video playing:', title);
+                }).catch(e => {
+                    console.log('Video autoplay blocked:', e.message);
+                    artworkGroup.userData.needsVideoPlay = true;
+                    showMessage('Click anywhere to play video');
+                });
+                
+            } else if (mediaData.type === '3d') {
+                console.log('Loading 3D model:', title);
+                
+                // Add loading indicator to frame (make it glow)
+                frame.material.emissive = new THREE.Color(0xa8c5d1);
+                frame.material.emissiveIntensity = 0.3;
+                
+                // Load 3D model
+                const loader = new THREE.GLTFLoader();
+                
+                // Convert data URL to blob for GLTF loader
+                fetch(mediaData.data)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        
+                        loader.load(
+                            url,
+                            function(gltf) {
+                                const model = gltf.scene;
+                                
+                                // Scale model to fit in frame
+                                const box = new THREE.Box3().setFromObject(model);
+                                const size = box.getSize(new THREE.Vector3());
+                                const maxDim = Math.max(size.x, size.y, size.z);
+                                const scale = 5 / maxDim;
+                                model.scale.multiplyScalar(scale);
+                                
+                                // Center model
+                                box.setFromObject(model);
+                                const center = box.getCenter(new THREE.Vector3());
+                                model.position.sub(center);
+                                model.position.z = 0.5;
+                                
+                                artworkGroup.add(model);
+                                artworkGroup.userData.is3D = true;
+                                artworkGroup.userData.model = model;
+                                
+                                // Remove loading glow
+                                frame.material.emissive = new THREE.Color(0x000000);
+                                frame.material.emissiveIntensity = 0;
+                                
+                                // Enable shadows
+                                model.traverse((child) => {
+                                    if (child.isMesh) {
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                    }
+                                });
+                                
+                                URL.revokeObjectURL(url);
+                                console.log('3D model loaded successfully:', title);
+                            },
+                            function(xhr) {
+                                const percent = Math.round((xhr.loaded / xhr.total) * 100);
+                                console.log('Loading 3D model: ' + percent + '%');
+                            },
+                            function(error) {
+                                console.error('Error loading 3D model:', error);
+                                showMessage('Error loading 3D model: ' + title);
+                                // Remove loading glow
+                                frame.material.emissive = new THREE.Color(0x000000);
+                                frame.material.emissiveIntensity = 0;
+                            }
+                        );
+                    })
+                    .catch(error => {
+                        console.error('Error converting model data:', error);
+                        showMessage('Error processing 3D model');
+                    });
+            }
+        }
+
+        function updateGalleryCount() {
+            document.getElementById('gallery-count').textContent = artworks.length;
+        }
+
+        // === MUSIC SYSTEM ===
+        const musicSources = [];
+        let currentAudioData = null;
+        let previewAudio = null;
+        let previewInterval = null;
+
+        function openMusicPanel() {
+            // Resume audio context on user interaction
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            document.getElementById('music-panel').classList.add('active');
+        }
+
+        function closeMusicPanel() {
+            document.getElementById('music-panel').classList.remove('active');
+            document.getElementById('music-title').value = '';
+            document.getElementById('music-artist').value = '';
+            document.getElementById('audio-preview').classList.remove('active');
+            
+            if (previewAudio) {
+                previewAudio.pause();
+                previewAudio = null;
+            }
+            if (previewInterval) {
+                clearInterval(previewInterval);
+                previewInterval = null;
+            }
+            
+            currentAudioData = null;
+        }
+
+        // Music file upload handling
+        const musicUploadZone = document.getElementById('music-upload-zone');
+        const musicFileInput = document.getElementById('music-file-input');
+
+        musicUploadZone.addEventListener('click', () => musicFileInput.click());
+
+        musicUploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            musicUploadZone.classList.add('dragover');
+        });
+
+        musicUploadZone.addEventListener('dragleave', () => {
+            musicUploadZone.classList.remove('dragover');
+        });
+
+        musicUploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            musicUploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleMusicFile(file);
+        });
+
+        musicFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleMusicFile(file);
+        });
+
+        function handleMusicFile(file) {
+            console.log('=== MUSIC FILE UPLOAD START ===');
+            console.log('File:', file.name);
+            console.log('Type:', file.type);
+            console.log('Size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+            
+            if (!file.type.startsWith('audio/')) {
+                console.log('ERROR: Not an audio file');
+                showMessage('Please upload an audio file');
+                return;
+            }
+
+            if (file.size > 100 * 1024 * 1024) {
+                console.log('ERROR: File too large');
+                showMessage('File too large. Max 100MB');
+                return;
+            }
+
+            console.log('Reading file...');
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                console.log('File read complete. Data length:', e.target.result.length);
+                currentAudioData = e.target.result;
+                
+                // Create preview audio
+                previewAudio = new Audio(currentAudioData);
+                
+                // Show preview controls
+                const previewContainer = document.getElementById('audio-preview');
+                previewContainer.classList.add('active');
+                console.log('Preview panel activated');
+                
+                // Update info
+                document.getElementById('audio-info').textContent = 
+                    `${file.name} • ${(file.size / 1024 / 1024).toFixed(1)}MB`;
+                
+                // Auto-fill title
+                if (!document.getElementById('music-title').value) {
+                    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+                    document.getElementById('music-title').value = nameWithoutExt;
+                    console.log('Title auto-filled:', nameWithoutExt);
+                }
+                
+                console.log('=== MUSIC FILE READY TO PLACE ===');
+            };
+            
+            reader.onerror = (e) => {
+                console.error('ERROR reading file:', e);
+                showMessage('Error reading file');
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        // Preview playback controls
+        document.getElementById('preview-play').addEventListener('click', function() {
+            if (!previewAudio) return;
+            
+            if (previewAudio.paused) {
+                previewAudio.play();
+                this.textContent = '⏸';
+                
+                previewInterval = setInterval(() => {
+                    const progress = (previewAudio.currentTime / previewAudio.duration) * 100;
+                    document.getElementById('preview-progress').style.width = progress + '%';
+                }, 100);
+            } else {
+                previewAudio.pause();
+                this.textContent = '▶';
+                if (previewInterval) clearInterval(previewInterval);
+            }
+        });
+
+        // Volume slider
+        document.getElementById('volume-slider').addEventListener('input', function() {
+            document.getElementById('volume-value').textContent = this.value + '%';
+        });
+
+        // Range slider
+        document.getElementById('range-slider').addEventListener('input', function() {
+            document.getElementById('range-value').textContent = this.value + 'm';
+        });
+
+        function placeMusicSource() {
+            console.log('=== PLACE MUSIC SOURCE CALLED ===');
+            console.log('currentAudioData exists:', !!currentAudioData);
+            
+            if (!currentAudioData) {
+                console.log('ERROR: No audio data');
+                showMessage('Please select an audio file first');
+                return;
+            }
+
+            const title = document.getElementById('music-title').value || 'Untitled Track';
+            const artist = document.getElementById('music-artist').value || 'Anonymous';
+            const volume = document.getElementById('volume-slider').value / 100;
+            const range = parseInt(document.getElementById('range-slider').value);
+
+            console.log('Title:', title);
+            console.log('Artist:', artist);
+            console.log('Volume:', volume);
+            console.log('Range:', range);
+            console.log('Calling createMusicSource...');
+
+            createMusicSource(currentAudioData, title, artist, volume, range);
+            
+            console.log('Closing music panel...');
+            closeMusicPanel();
+            
+            showMessage('Music source placed. Click to start playback.');
+            console.log('=== PLACE MUSIC SOURCE COMPLETE ===');
+        }
+
+        function createMusicSource(audioData, title, artist, volume, range) {
+            console.log('=== CREATE MUSIC SOURCE START ===');
+            console.log('Audio data length:', audioData.length);
+            console.log('Creating resonator...');
+            
+            // Create crystalline resonator
+            const resonatorGeometry = new THREE.OctahedronGeometry(2, 2);
+            const resonatorMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xe8f4f8,
+                metalness: 0.3,
+                roughness: 0.1,
+                transmission: 0.8,
+                transparent: true,
+                opacity: 0.6,
+                emissive: 0xa8c5d1,
+                emissiveIntensity: 0.3
+            });
+            const resonator = new THREE.Mesh(resonatorGeometry, resonatorMaterial);
+            resonator.castShadow = true;
+            console.log('Resonator created');
+
+            // Add pulsing rings
+            const ringGeometry = new THREE.RingGeometry(2.5, 3, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0xd4e8ed,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            const ring1 = new THREE.Mesh(ringGeometry, ringMaterial);
+            const ring2 = new THREE.Mesh(ringGeometry, ringMaterial.clone());
+            const ring3 = new THREE.Mesh(ringGeometry, ringMaterial.clone());
+            
+            ring1.rotation.x = Math.PI / 2;
+            ring2.rotation.y = Math.PI / 2;
+            ring3.rotation.z = Math.PI / 2;
+            console.log('Rings created');
+
+            // Group
+            const musicGroup = new THREE.Group();
+            musicGroup.add(resonator);
+            musicGroup.add(ring1);
+            musicGroup.add(ring2);
+            musicGroup.add(ring3);
+            console.log('Group assembled');
+
+            // Position
+            const angle = musicSources.length * 0.618 * Math.PI * 2;
+            const radius = 30 + musicSources.length * 8;
+            musicGroup.position.set(
+                camera.position.x + Math.cos(angle) * radius,
+                6 + Math.random() * 4,
+                camera.position.z + Math.sin(angle) * radius
+            );
+            console.log('Position set:', musicGroup.position);
+
+            // Create positional audio
+            console.log('Creating PositionalAudio...');
+            const sound = new THREE.PositionalAudio(listener);
+            const audioLoader = new THREE.AudioLoader();
+            
+            console.log('Loading audio buffer...');
+            audioLoader.load(
+                audioData,
+                function(buffer) {
+                    console.log('✓ Audio buffer loaded! Duration:', buffer.duration);
+                    sound.setBuffer(buffer);
+                    sound.setRefDistance(range * 0.3);
+                    sound.setMaxDistance(range);
+                    sound.setRolloffFactor(1);
+                    sound.setVolume(volume);
+                    sound.setLoop(true);
+                    
+                    musicGroup.add(sound);
+                    console.log('Sound attached to group');
+                    
+                    // Try to play
+                    try {
+                        sound.play();
+                        console.log('✓ Sound playing!');
+                    } catch(e) {
+                        console.log('Play blocked:', e.message);
+                    }
+                },
+                function(xhr) {
+                    const percent = Math.round((xhr.loaded / xhr.total) * 100);
+                    if (percent % 25 === 0) {
+                        console.log('Loading progress:', percent + '%');
+                    }
+                },
+                function(error) {
+                    console.error('✗ Error loading audio:', error);
+                    showMessage('Error loading audio');
+                }
+            );
+
+            // Metadata
+            musicGroup.userData = {
+                title: title,
+                artist: artist,
+                sound: sound,
+                rings: [ring1, ring2, ring3],
+                pulsePhase: Math.random() * Math.PI * 2,
+                volume: volume,
+                range: range
+            };
+
+            scene.add(musicGroup);
+            musicSources.push(musicGroup);
+            updateMusicCount();
+            
+            console.log('Group added to scene. Total music sources:', musicSources.length);
+            console.log('=== CREATE MUSIC SOURCE COMPLETE ===');
+        }
+
+        function updateMusicCount() {
+            document.getElementById('music-count').textContent = musicSources.length;
+        }
+
+        // === CAMERA CONTROLS ===
+        camera.position.set(0, 5, 25);
+        let cameraRotation = { x: 0, y: 0 };
+        let velocity = { x: 0, y: 0, z: 0 };
+        let isAscending = false;
+        const moveSpeed = 0.25;
+        const ascendSpeed = 0.3;
+        const gravity = 0.015;
+        const minHeight = 3;
+
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            if (e.key) {
+                keys[e.key.toLowerCase()] = true;
+            }
+            // Resume audio context on any key press
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            // Try to play any pending sounds
+            playPendingSounds();
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key) {
+                keys[e.key.toLowerCase()] = false;
+            }
+        });
+
+        let mouseDown = false;
+        document.addEventListener('mousedown', () => {
+            mouseDown = true;
+            // Resume audio context on click
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            // Try to play any pending sounds
+            playPendingSounds();
+            
+            // Try to play any pending videos
+            artworks.forEach(artwork => {
+                if (artwork.userData.needsVideoPlay && artwork.userData.video) {
+                    artwork.userData.video.play().then(() => {
+                        artwork.userData.needsVideoPlay = false;
+                        console.log('Started video:', artwork.userData.title);
+                    }).catch(() => {});
+                }
+            });
+        });
+        document.addEventListener('mouseup', () => mouseDown = false);
+        document.addEventListener('mousemove', (e) => {
+            if (mouseDown) {
+                cameraRotation.y -= e.movementX * 0.002;
+                cameraRotation.x -= e.movementY * 0.002;
+                cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+            }
+        });
+
+        // Function to play sounds that were blocked by autoplay policy
+        function playPendingSounds() {
+            console.log('Attempting to play pending sounds...');
+            musicSources.forEach(source => {
+                if (source.userData.needsPlay && source.userData.sound && !source.userData.loading) {
+                    const sound = source.userData.sound;
+                    if (sound.buffer && !sound.isPlaying) {
+                        try {
+                            sound.play();
+                            source.userData.needsPlay = false;
+                            console.log('Started playing:', source.userData.title);
+                            showMessage('Playing: ' + source.userData.title);
+                        } catch(e) {
+                            console.error('Error playing sound:', e);
+                        }
+                    }
+                }
+            });
+        }
+
+        // === FUNCTIONS ===
+        function teleportRandom() {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 50 + Math.random() * 100;
+            camera.position.x = Math.cos(angle) * distance;
+            camera.position.z = Math.sin(angle) * distance;
+            camera.position.y = minHeight;
+            velocity = { x: 0, y: 0, z: 0 };
+            showMessage('Translocated');
+        }
+
+        let timeState = 0;
+        function changeTime() {
+            timeState = (timeState + 1) % 3;
+            if (timeState === 0) {
+                // Dawn
+                scene.fog.color.set(0xd4e8ed);
+                renderer.setClearColor(0xd4e8ed);
+                ambientLight.intensity = 0.6;
+                sunLight.intensity = 0.8;
+                document.getElementById('time-display').textContent = 'Dawn';
+                showMessage('Dawn approaches');
+            } else if (timeState === 1) {
+                // Midday
+                scene.fog.color.set(0xe8f4f8);
+                renderer.setClearColor(0xe8f4f8);
+                ambientLight.intensity = 0.9;
+                sunLight.intensity = 1.0;
+                document.getElementById('time-display').textContent = 'Midday';
+                showMessage('Clarity intensifies');
+            } else {
+                // Dusk
+                scene.fog.color.set(0xa8c5d1);
+                renderer.setClearColor(0xa8c5d1);
+                ambientLight.intensity = 0.4;
+                sunLight.intensity = 0.5;
+                document.getElementById('time-display').textContent = 'Dusk';
+                showMessage('Stillness descends');
+            }
+        }
+
+        function toggleControls() {
+            const controls = document.querySelector('.controls');
+            const btn = event.target;
+            if (controls.style.display === 'none') {
+                controls.style.display = 'block';
+                btn.textContent = 'Hide Interface';
+            } else {
+                controls.style.display = 'none';
+                btn.textContent = 'Show Interface';
+            }
+        }
+
+        function showMessage(text) {
+            const existing = document.querySelector('.message');
+            if (existing) existing.remove();
+            
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            msg.textContent = text;
+            document.body.appendChild(msg);
+            
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                msg.style.transition = 'opacity 0.5s';
+                setTimeout(() => msg.remove(), 500);
+            }, 2000);
+        }
+
+        function updateEntityCount() {
+            document.getElementById('entities').textContent = entities.length;
+        }
+
+        function updateCoords() {
+            const x = Math.round(camera.position.x);
+            const y = Math.round(camera.position.y);
+            const z = Math.round(camera.position.z);
+            document.getElementById('coords').textContent = `${x}, ${y}, ${z}`;
+        }
+
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = 'rgba(15, 30, 40, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const scale = 0.8;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Draw structures
+            ctx.fillStyle = 'rgba(212, 232, 237, 0.4)';
+            structures.forEach(s => {
+                const x = centerX + (s.position.x - camera.position.x) * scale;
+                const y = centerY + (s.position.z - camera.position.z) * scale;
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    ctx.fillRect(x - 2, y - 2, 4, 4);
+                }
+            });
+            
+            // Draw entities
+            ctx.fillStyle = 'rgba(168, 197, 209, 0.8)';
+            entities.forEach(e => {
+                const x = centerX + (e.position.x - camera.position.x) * scale;
+                const y = centerY + (e.position.z - camera.position.z) * scale;
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Draw artworks
+            ctx.fillStyle = 'rgba(212, 232, 237, 0.9)';
+            artworks.forEach(a => {
+                const x = centerX + (a.position.x - camera.position.x) * scale;
+                const y = centerY + (a.position.z - camera.position.z) * scale;
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    ctx.fillRect(x - 2.5, y - 2.5, 5, 5);
+                }
+            });
+
+            // Draw music sources
+            ctx.strokeStyle = 'rgba(168, 197, 209, 0.9)';
+            ctx.fillStyle = 'rgba(168, 197, 209, 0.4)';
+            ctx.lineWidth = 1.5;
+            musicSources.forEach(m => {
+                const x = centerX + (m.position.x - camera.position.x) * scale;
+                const y = centerY + (m.position.z - camera.position.z) * scale;
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw player
+            ctx.strokeStyle = 'rgba(212, 232, 237, 1)';
+            ctx.fillStyle = 'rgba(212, 232, 237, 0.8)';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw direction
+            ctx.strokeStyle = 'rgba(212, 232, 237, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.sin(cameraRotation.y) * 18,
+                centerY + Math.cos(cameraRotation.y) * 18
+            );
+            ctx.stroke();
+        }
+
+        // === ANIMATION LOOP ===
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Movement
+            const forward = new THREE.Vector3(Math.sin(cameraRotation.y), 0, Math.cos(cameraRotation.y));
+            const right = new THREE.Vector3(Math.cos(cameraRotation.y), 0, -Math.sin(cameraRotation.y));
+
+            if (keys['w']) velocity.z = -moveSpeed;
+            else if (keys['s']) velocity.z = moveSpeed;
+            else velocity.z *= 0.9;
+
+            if (keys['a']) velocity.x = -moveSpeed;
+            else if (keys['d']) velocity.x = moveSpeed;
+            else velocity.x *= 0.9;
+
+            if (keys[' '] && camera.position.y <= minHeight + 0.5) {
+                velocity.y = ascendSpeed;
+                isAscending = true;
+            }
+
+            camera.position.add(forward.multiplyScalar(velocity.z));
+            camera.position.add(right.multiplyScalar(velocity.x));
+            camera.position.y += velocity.y;
+            
+            velocity.y -= gravity;
+            
+            if (camera.position.y < minHeight) {
+                camera.position.y = minHeight;
+                velocity.y = 0;
+                isAscending = false;
+            }
+
+            camera.rotation.y = cameraRotation.y;
+            camera.rotation.x = cameraRotation.x;
+
+            // Update state indicator
+            const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+            if (speed < 0.02) {
+                document.getElementById('status').textContent = 'Observing';
+            } else if (speed < 0.15) {
+                document.getElementById('status').textContent = 'Moving';
+            } else {
+                document.getElementById('status').textContent = 'Traversing';
+            }
+
+            // Animate structures (subtle)
+            structures.forEach((s, i) => {
+                s.rotation.y += 0.002;
+                const bobAmount = Math.sin(Date.now() * 0.0005 + i) * 0.02;
+                s.position.y += bobAmount;
+            });
+
+            // Animate entities (floating angels)
+            entities.forEach((angel, i) => {
+                // Gentle floating movement
+                angel.position.x += angel.userData.velocity.x;
+                angel.position.y += angel.userData.velocity.y;
+                angel.position.z += angel.userData.velocity.z;
+                
+                // Slow rotation on Y axis
+                angel.rotation.y += angel.userData.rotationSpeed;
+                
+                // Gentle swaying
+                const sway = Math.sin(Date.now() * 0.001 + i) * 0.02;
+                angel.rotation.z = sway;
+                
+                // Animate wings (flapping motion)
+                const wingFlap = Math.sin(Date.now() * 0.002 * angel.userData.wingSpeed) * 0.15;
+                if (angel.children[3]) { // Left wing
+                    angel.children[3].rotation.y = Math.PI / 6 + wingFlap;
+                }
+                if (angel.children[4]) { // Right wing
+                    angel.children[4].rotation.y = -Math.PI / 6 - wingFlap;
+                }
+                
+                // Animate halo glow
+                if (angel.children[2]) { // Halo
+                    const glowPulse = Math.sin(Date.now() * 0.003 + i) * 0.3 + 0.5;
+                    angel.children[2].material.emissiveIntensity = 0.8 + glowPulse * 0.4;
+                }
+                
+                // Animate light particles (orbit around angel)
+                angel.userData.particlePhase += 0.02;
+                for (let p = 5; p < angel.children.length; p++) {
+                    const particle = angel.children[p];
+                    if (particle.userData.orbitAngle !== undefined) {
+                        const angle = particle.userData.orbitAngle + angel.userData.particlePhase;
+                        particle.position.set(
+                            Math.cos(angle) * 1.5,
+                            Math.sin(angle * 2) * 0.5,
+                            Math.sin(angle) * 1.5
+                        );
+                    }
+                }
+                
+                // Boundary check - respawn if too far
+                if (Math.abs(angel.position.x) > 180 || Math.abs(angel.position.z) > 180 || 
+                    angel.position.y < 3 || angel.position.y > 40) {
+                    angel.position.set(
+                        camera.position.x + (Math.random() - 0.5) * 50,
+                        8 + Math.random() * 15,
+                        camera.position.z + (Math.random() - 0.5) * 50
+                    );
+                }
+            });
+
+            // Animate artworks (gentle floating)
+            artworks.forEach((artwork, i) => {
+                artwork.position.y += artwork.userData.velocity.y;
+                artwork.rotation.y += artwork.userData.velocity.rotation;
+
+                // Gentle bobbing
+                const bobAmount = Math.sin(Date.now() * 0.0008 + i * 0.5) * 0.015;
+                artwork.position.y += bobAmount;
+
+                // Boundary check - keep near original position
+                if (artwork.position.y < 4 || artwork.position.y > 14) {
+                    artwork.userData.velocity.y *= -0.5;
+                }
+
+                // Special handling for 3D models - rotate them slowly
+                if (artwork.userData.is3D && artwork.userData.model) {
+                    artwork.userData.model.rotation.y += 0.01;
+                }
+
+                // Try to play videos that were blocked by autoplay
+                if (artwork.userData.needsVideoPlay && artwork.userData.video) {
+                    artwork.userData.video.play().then(() => {
+                        artwork.userData.needsVideoPlay = false;
+                    }).catch(() => {});
+                }
+            });
+
+            // Animate music sources (pulsing resonators)
+            musicSources.forEach((source, i) => {
+                const resonator = source.children[0]; // Main crystal
+                const rings = source.userData.rings;
+                
+                // Show loading state
+                if (source.userData.loading) {
+                    // Pulse faster while loading
+                    const loadingPulse = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+                    resonator.material.emissiveIntensity = 0.3 + loadingPulse * 0.4;
+                }
+                
+                // Rotate resonator
+                resonator.rotation.x += 0.008;
+                resonator.rotation.y += 0.012;
+                
+                // Pulse rings based on "audio" (visual approximation)
+                const pulseSpeed = 0.002;
+                source.userData.pulsePhase += pulseSpeed;
+                const pulse = Math.sin(source.userData.pulsePhase) * 0.5 + 0.5;
+                
+                rings.forEach((ring, ringIndex) => {
+                    const offset = ringIndex * Math.PI * 0.66;
+                    const ringPulse = Math.sin(source.userData.pulsePhase + offset) * 0.3 + 0.7;
+                    ring.scale.set(ringPulse, ringPulse, ringPulse);
+                    ring.material.opacity = 0.2 + pulse * 0.2;
+                    ring.rotation.z += 0.005 * (ringIndex + 1);
+                });
+                
+                // Gentle floating
+                const floatAmount = Math.sin(Date.now() * 0.0006 + i) * 0.02;
+                source.position.y += floatAmount;
+                
+                // Pulse emissive based on distance to camera (louder when closer)
+                if (!source.userData.loading) {
+                    const distance = source.position.distanceTo(camera.position);
+                    const intensity = Math.max(0, 1 - distance / source.userData.range);
+                    resonator.material.emissiveIntensity = 0.2 + intensity * 0.3;
+                    
+                    // Visual indication if sound is playing
+                    if (source.userData.sound && source.userData.sound.isPlaying) {
+                        resonator.material.emissiveIntensity = Math.max(
+                            resonator.material.emissiveIntensity,
+                            0.4 + pulse * 0.2
+                        );
+                    }
+                }
+            });
+
+            // Animate lights (subtle drift)
+            accentLight1.position.x = 30 + Math.sin(Date.now() * 0.0003) * 10;
+            accentLight1.position.z = 30 + Math.cos(Date.now() * 0.0003) * 10;
+            
+            accentLight2.position.x = -30 + Math.cos(Date.now() * 0.0004) * 10;
+            accentLight2.position.z = -30 + Math.sin(Date.now() * 0.0004) * 10;
+
+            updateCoords();
+            updateMinimap();
+            
+            renderer.render(scene, camera);
+        }
+
+        // === LOADING SEQUENCE ===
+        let progress = 0;
+        const loadingInterval = setInterval(() => {
+            progress += 4;
+            document.getElementById('progress').style.width = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(loadingInterval);
+                setTimeout(() => {
+                    const loading = document.getElementById('loading');
+                    loading.style.opacity = '0';
+                    setTimeout(() => {
+                        loading.remove();
+                        showMessage('You have entered Veridian');
+                    }, 1000);
+                }, 500);
+            }
+        }, 40);
+
+        // === WINDOW RESIZE ===
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // === START ===
+        animate();
+        updateEntityCount();
+    </script>
+</body>
+</html>
