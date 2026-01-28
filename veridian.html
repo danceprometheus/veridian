@@ -960,12 +960,20 @@
         document.body.appendChild(vrButton);
         console.log('VR button added to page');
 
-        // Simple click handler
+        // Simple click handler with correct reference space
         vrButton.onclick = async function() {
             console.log('VR button clicked!');
             try {
-                const session = await navigator.xr.requestSession('immersive-vr');
+                // Request session with no required features (maximum compatibility)
+                const session = await navigator.xr.requestSession('immersive-vr', {
+                    optionalFeatures: ['local-floor', 'bounded-floor']
+                });
+                
+                console.log('VR session created!');
+                
+                // Set up renderer for VR
                 await renderer.xr.setSession(session);
+                
                 vrButton.style.display = 'none';
                 console.log('Entered VR!');
                 
