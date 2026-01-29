@@ -5,6 +5,7 @@ import { getCurrentUser } from './auth.js';
 import { supabase } from './supabase.js';
 import { WalletManager } from './wallet.js';
 import './styles.css';
+import { MultiplayerClient } from './multiplayer.js';
 
 console.log('🎮 Veridian with full features loading...');
 
