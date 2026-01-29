@@ -903,7 +903,7 @@ class AssetManager {
         *,
         assets (*)
       `)
-      .eq('room_id', 'hall-of-clarity');
+      .eq('room_id', 'f3881022-9ad0-4c69-a12a-94d0059fabb0');
 
     if (error) {
       console.error('Failed to load placed assets:', error);
