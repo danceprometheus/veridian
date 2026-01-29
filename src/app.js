@@ -17,8 +17,7 @@ window.addEventListener('userAuthenticated', (event) => {
 });
 
 function initializeWorld(user) {
-  console.log('🌍 Initializing Veridian metaverse...');
-  
+  console.log('🌍 Initializing Veridian metaverse...');  
   // === THREE.JS SETUP ===
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xd4e8ed, 50, 200);
@@ -187,9 +186,17 @@ function initializeWorld(user) {
     }
   });
 
-  document.addEventListener('click', () => {
+  // Request pointer lock only when the canvas is clicked (not on any document click).
+  // Guard for XR mode and for availability of the API.
+  renderer.domElement.addEventListener('click', () => {
     if (!renderer.xr.isPresenting && document.pointerLockElement !== renderer.domElement) {
-      renderer.domElement.requestPointerLock();
+      try {
+        if (typeof renderer.domElement.requestPointerLock === 'function') {
+          renderer.domElement.requestPointerLock();
+        }
+      } catch (err) {
+        console.warn('requestPointerLock failed:', err);
+      }
     }
   });
 
@@ -619,7 +626,7 @@ class AssetManager {
   formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    return (bytes / 1024 / 1024).toFixed(0) + ' MB';
   }
 
   filterAssets(filter) {
@@ -687,7 +694,7 @@ class AssetManager {
     video.crossOrigin = 'anonymous';
     video.loop = true;
     video.muted = true;
-    video.play();
+    await video.play().catch(()=>{});
 
     const texture = new THREE.VideoTexture(video);
     const geometry = new THREE.PlaneGeometry(3, 2);
