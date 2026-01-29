@@ -330,6 +330,22 @@ button:disabled {
   border-color: rgba(212, 232, 237, 0.5);
 }
 
+/* Wallet Status */
+.wallet-status {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(212, 232, 237, 0.05);
+  border-radius: 8px;
+}
+
+.wallet-address {
+  margin-top: 15px;
+  font-size: 14px;
+  opacity: 0.8;
+  font-family: 'Courier New', monospace;
+}
+
 /* Asset Grid */
 .asset-grid {
   display: grid;
