@@ -17,6 +17,7 @@ window.config = config;
 // Import and start authentication
 import { initAuth } from './auth.js';
 import './app.js';
+import './wallet.js';
 
 // Initialize authentication flow
 initAuth();
