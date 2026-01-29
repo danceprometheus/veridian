@@ -457,122 +457,215 @@ class AssetManager {
     }, 100);
   }
 
-  attachEventListeners() {
-    // Upload button
-    const uploadBtn = document.getElementById('upload-btn');
-    if (uploadBtn) {
-      uploadBtn.addEventListener('click', () => {
-        document.getElementById('upload-panel').classList.remove('hidden');
-      });
-    }
-
-    // Library button
-    const libraryBtn = document.getElementById('library-btn');
-    if (libraryBtn) {
-      libraryBtn.addEventListener('click', () => {
-        document.getElementById('library-panel').classList.remove('hidden');
-        this.loadUserAssets();
-      });
-    }
-
-    // Wallet button
-    const walletBtn = document.getElementById('wallet-btn');
-    if (walletBtn) {
-      walletBtn.addEventListener('click', () => {
-        document.getElementById('nft-panel').classList.remove('hidden');
-      });
-    }
-
-    // Browse button
-    const browseBtn = document.getElementById('browse-btn');
-    if (browseBtn) {
-      browseBtn.addEventListener('click', () => {
-        document.getElementById('file-input').click();
-      });
-    }
-
-    // File input
-    const fileInput = document.getElementById('file-input');
-    if (fileInput) {
-      fileInput.addEventListener('change', (e) => {
-        this.handleFiles(e.target.files);
-      });
-    }
-
-    // Dropzone
-    const dropzone = document.getElementById('dropzone');
-    if (dropzone) {
-      dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-      });
-      dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('dragover');
-      });
-      dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-        this.handleFiles(e.dataTransfer.files);
-      });
-      dropzone.addEventListener('click', () => {
-        document.getElementById('file-input').click();
-      });
-    }
-
-    // Close buttons
-    document.querySelectorAll('.close-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.target.closest('.panel').classList.add('hidden');
-      });
+attachEventListeners() {
+  console.log('🔌 Attaching event listeners...');
+  
+  // Upload button
+  const uploadBtn = document.getElementById('upload-btn');
+  if (uploadBtn) {
+    console.log('✓ Found upload button');
+    uploadBtn.addEventListener('click', (e) => {
+      console.log('Upload button clicked!');
+      e.stopPropagation();
+      const panel = document.getElementById('upload-panel');
+      if (panel) {
+        panel.classList.remove('hidden');
+        console.log('✓ Upload panel opened');
+      } else {
+        console.error('❌ Upload panel not found');
+      }
     });
-
-    // Tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.updateFileAccept(e.target.dataset.type);
-      });
-    });
-
-    // Filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.filterAssets(e.target.dataset.filter);
-      });
-    });
-
-    // Connect wallet button
-    const connectWalletBtn = document.getElementById('connect-wallet-btn');
-    if (connectWalletBtn) {
-      connectWalletBtn.addEventListener('click', async () => {
-        const btn = connectWalletBtn;
-        btn.disabled = true;
-        btn.textContent = 'Connecting...';
-        
-        if (!this.walletManager) {
-          this.walletManager = new WalletManager();
-        }
-        
-        const address = await this.walletManager.connectMetaMask();
-        
-        if (address) {
-          document.getElementById('wallet-address').textContent = 
-            `Connected: ${this.walletManager.getShortAddress(address)}`;
-          document.getElementById('wallet-address').classList.remove('hidden');
-          btn.style.display = 'none';
-          
-          // Load NFTs
-          await this.loadNFTs();
-        } else {
-          btn.disabled = false;
-          btn.textContent = 'Connect MetaMask';
-        }
-      });
-    }
+  } else {
+    console.error('❌ Upload button not found');
   }
+
+  // Library button
+  const libraryBtn = document.getElementById('library-btn');
+  if (libraryBtn) {
+    console.log('✓ Found library button');
+    libraryBtn.addEventListener('click', (e) => {
+      console.log('Library button clicked!');
+      e.stopPropagation();
+      const panel = document.getElementById('library-panel');
+      if (panel) {
+        panel.classList.remove('hidden');
+        console.log('✓ Library panel opened');
+        this.loadUserAssets();
+      } else {
+        console.error('❌ Library panel not found');
+      }
+    });
+  } else {
+    console.error('❌ Library button not found');
+  }
+
+  // Wallet button
+  const walletBtn = document.getElementById('wallet-btn');
+  if (walletBtn) {
+    console.log('✓ Found wallet button');
+    walletBtn.addEventListener('click', (e) => {
+      console.log('Wallet button clicked!');
+      e.stopPropagation();
+      const panel = document.getElementById('nft-panel');
+      if (panel) {
+        panel.classList.remove('hidden');
+        console.log('✓ NFT panel opened');
+      } else {
+        console.error('❌ NFT panel not found');
+      }
+    });
+  } else {
+    console.error('❌ Wallet button not found');
+  }
+
+  // Browse button
+  const browseBtn = document.getElementById('browse-btn');
+  if (browseBtn) {
+    console.log('✓ Found browse button');
+    browseBtn.addEventListener('click', (e) => {
+      console.log('Browse button clicked!');
+      e.stopPropagation();
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) {
+        fileInput.click();
+        console.log('✓ File input triggered');
+      } else {
+        console.error('❌ File input not found');
+      }
+    });
+  }
+
+  // File input
+  const fileInput = document.getElementById('file-input');
+  if (fileInput) {
+    console.log('✓ Found file input');
+    fileInput.addEventListener('change', (e) => {
+      console.log('Files selected:', e.target.files.length);
+      this.handleFiles(e.target.files);
+    });
+  }
+
+  // Dropzone
+  const dropzone = document.getElementById('dropzone');
+  if (dropzone) {
+    console.log('✓ Found dropzone');
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      console.log('Files dropped:', e.dataTransfer.files.length);
+      this.handleFiles(e.dataTransfer.files);
+    });
+    dropzone.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('Dropzone clicked');
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) {
+        fileInput.click();
+      }
+    });
+  }
+
+  // Close buttons
+  document.querySelectorAll('.close-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const panel = e.target.closest('.panel');
+      if (panel) {
+        panel.classList.add('hidden');
+        console.log('Panel closed');
+      }
+    });
+  });
+
+  // Tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      this.updateFileAccept(e.target.dataset.type);
+    });
+  });
+
+  // Filter buttons
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      this.filterAssets(e.target.dataset.filter);
+    });
+  });
+
+  // Connect wallet button
+  const connectWalletBtn = document.getElementById('connect-wallet-btn');
+  if (connectWalletBtn) {
+    console.log('✓ Found connect wallet button');
+    connectWalletBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      console.log('Connect wallet clicked!');
+      const btn = connectWalletBtn;
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      
+      if (!this.walletManager) {
+        this.walletManager = new WalletManager();
+      }
+      
+      const address = await this.walletManager.connectMetaMask();
+      
+      if (address) {
+        document.getElementById('wallet-address').textContent = 
+          `Connected: ${this.walletManager.getShortAddress(address)}`;
+        document.getElementById('wallet-address').classList.remove('hidden');
+        btn.style.display = 'none';
+        await this.loadNFTs();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Connect MetaMask';
+      }
+    });
+  }
+  
+  console.log('✓ All event listeners attached');
+}
+```
+
+---
+
+## **📱 ABOUT CAMERA/PHOTOS:**
+
+The file picker **automatically** handles:
+- **Desktop:** Opens file browser
+- **Phone:** Shows options:
+  - "Take Photo" (opens camera)
+  - "Choose from Library" (opens photo gallery)
+  - "Browse Files"
+
+You don't need to code this separately - the browser handles it natively when you use `<input type="file">`.
+
+---
+
+## **🚀 AFTER YOU UPDATE:**
+
+1. Commit the changes
+2. Deploy
+3. Open console (F12)
+4. Look for these messages:
+```
+   ✓ Asset Manager initialized
+   ✓ Found upload button
+   ✓ Found library button
+   ✓ Found wallet button
+   🔌 Attaching event listeners...
+   ✓ All event listeners attached
 
   updateFileAccept(type) {
     const fileInput = document.getElementById('file-input');
