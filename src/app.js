@@ -3,6 +3,7 @@ import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFa
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getCurrentUser } from './auth.js';
 import { supabase } from './supabase.js';
+import { WalletManager } from './wallet.js';
 import './styles.css';
 
 console.log('🎮 Veridian with full features loading...');
@@ -17,7 +18,8 @@ window.addEventListener('userAuthenticated', (event) => {
 });
 
 function initializeWorld(user) {
-  console.log('🌍 Initializing Veridian metaverse...');  
+  console.log('🌍 Initializing Veridian metaverse...');
+  
   // === THREE.JS SETUP ===
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xd4e8ed, 50, 200);
@@ -186,26 +188,19 @@ function initializeWorld(user) {
     }
   });
 
-  // Request pointer lock only when the canvas is clicked (not on any document click).
-  // Guard for XR mode and for availability of the API.
+  // Only lock pointer when clicking on canvas
   renderer.domElement.addEventListener('click', () => {
     if (!renderer.xr.isPresenting && document.pointerLockElement !== renderer.domElement) {
-      try {
-        if (typeof renderer.domElement.requestPointerLock === 'function') {
-          renderer.domElement.requestPointerLock();
-        }
-      } catch (err) {
-        console.warn('requestPointerLock failed:', err);
-      }
+      renderer.domElement.requestPointerLock();
     }
   });
 
- // === ASSET MANAGER ===
-setTimeout(() => {
-  assetManager = new AssetManager(scene, camera, listener);
-  window.assetManager = assetManager;
-  console.log('✓ Asset Manager initialized');
-}, 1000);
+  // === ASSET MANAGER ===
+  setTimeout(() => {
+    assetManager = new AssetManager(scene, camera, listener);
+    window.assetManager = assetManager;
+    console.log('✓ Asset Manager initialized');
+  }, 1000);
 
   // === ANIMATION LOOP ===
   const raycaster = new THREE.Raycaster();
@@ -332,6 +327,7 @@ class AssetManager {
     this.assets = [];
     this.uploadedAssets = [];
     this.gltfLoader = new GLTFLoader();
+    this.walletManager = null;
     
     this.createUI();
     this.loadUserAssets();
@@ -339,503 +335,176 @@ class AssetManager {
   }
 
   createUI() {
-    const ui = document.createElement('div');
-    ui.innerHTML = `
-      <!-- Upload Panel -->
-      <div id="upload-panel" class="panel hidden">
-        <div class="panel-header">
-          <h2>Upload Assets</h2>
-          <button class="close-btn" onclick="window.assetManager.closeUploadPanel()">×</button>
-        </div>
-        <div class="panel-content">
-          <div class="upload-tabs">
-            <button class="tab-btn active" data-type="image">Images</button>
-            <button class="tab-btn" data-type="video">Videos</button>
-            <button class="tab-btn" data-type="audio">Music</button>
-            <button class="tab-btn" data-type="model">3D Models</button>
-          </div>
-          
-          <input type="file" id="file-input" accept="image/*" multiple hidden>
-          <div class="upload-dropzone" id="dropzone">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-            </svg>
-            <p>Drag files here or click to browse</p>
-            <p class="file-types">Supported: JPG, PNG, GIF, WebP (max 10MB)</p>
-          </div>
-          <button class="btn-primary" id="browse-btn">Browse Files</button>
-          
-          <div class="upload-progress hidden" id="upload-progress">
-            <div class="progress-bar">
-              <div class="progress-fill" id="progress-fill"></div>
-            </div>
-            <p id="progress-text">Uploading...</p>
-          </div>
-        </div>
+    // Upload Panel
+    const uploadPanel = document.createElement('div');
+    uploadPanel.id = 'upload-panel';
+    uploadPanel.className = 'panel hidden';
+    uploadPanel.innerHTML = `
+      <div class="panel-header">
+        <h2>Upload Assets</h2>
+        <button class="close-btn">×</button>
       </div>
-
-      <!-- Library Panel -->
-      <div id="library-panel" class="panel hidden">
-        <div class="panel-header">
-          <h2>My Assets</h2>
-          <button class="close-btn" onclick="window.assetManager.closeLibraryPanel()">×</button>
+      <div class="panel-content">
+        <div class="upload-tabs">
+          <button class="tab-btn active" data-type="image">Images</button>
+          <button class="tab-btn" data-type="video">Videos</button>
+          <button class="tab-btn" data-type="audio">Music</button>
+          <button class="tab-btn" data-type="model">3D Models</button>
         </div>
-        <div class="panel-content">
-          <div class="library-filters">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="image">Images</button>
-            <button class="filter-btn" data-filter="video">Videos</button>
-            <button class="filter-btn" data-filter="audio">Music</button>
-            <button class="filter-btn" data-filter="model">3D</button>
-          </div>
-          <div class="asset-grid" id="asset-grid">
-            <p class="empty-state">No assets yet. Upload some!</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <button class="action-btn" id="upload-btn" title="Upload">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        
+        <input type="file" id="file-input" accept="image/*" multiple hidden>
+        <div class="upload-dropzone" id="dropzone">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
           </svg>
-          Upload
-        </button>
-        <button class="action-btn" id="library-btn" title="Library">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-          </svg>
-          Library
-        </button>
+          <p>Drag files here or click to browse</p>
+          <p class="file-types">Supported: JPG, PNG, GIF, WebP (max 10MB)</p>
+        </div>
+        <button class="btn-primary" id="browse-btn">Browse Files</button>
+        
+        <div class="upload-progress hidden" id="upload-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p id="progress-text">Uploading...</p>
+        </div>
       </div>
     `;
-    document.body.appendChild(ui);
+    document.body.appendChild(uploadPanel);
+
+    // Library Panel
+    const libraryPanel = document.createElement('div');
+    libraryPanel.id = 'library-panel';
+    libraryPanel.className = 'panel hidden';
+    libraryPanel.innerHTML = `
+      <div class="panel-header">
+        <h2>My Assets</h2>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="panel-content">
+        <div class="library-filters">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="image">Images</button>
+          <button class="filter-btn" data-filter="video">Videos</button>
+          <button class="filter-btn" data-filter="audio">Music</button>
+          <button class="filter-btn" data-filter="model">3D</button>
+        </div>
+        <div class="asset-grid" id="asset-grid">
+          <p class="empty-state">No assets yet. Upload some!</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(libraryPanel);
+
+    // NFT Panel
+    const nftPanel = document.createElement('div');
+    nftPanel.id = 'nft-panel';
+    nftPanel.className = 'panel hidden';
+    nftPanel.innerHTML = `
+      <div class="panel-header">
+        <h2>My NFTs</h2>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="panel-content">
+        <div id="wallet-status" class="wallet-status">
+          <button class="btn-primary" id="connect-wallet-btn">Connect MetaMask</button>
+          <p class="wallet-address hidden" id="wallet-address"></p>
+        </div>
+        <div class="asset-grid" id="nft-grid">
+          <p class="empty-state">Connect your wallet to see your NFTs</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(nftPanel);
+
+    // Action Buttons
+    const actionButtons = document.createElement('div');
+    actionButtons.className = 'action-buttons';
+    actionButtons.innerHTML = `
+      <button class="action-btn" id="upload-btn" title="Upload">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+        </svg>
+        Upload
+      </button>
+      <button class="action-btn" id="library-btn" title="Library">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Library
+      </button>
+      <button class="action-btn" id="wallet-btn" title="NFTs">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+        NFTs
+      </button>
+    `;
+    document.body.appendChild(actionButtons);
     
-    this.attachEventListeners();
+    setTimeout(() => {
+      this.attachEventListeners();
+      console.log('✓ Event listeners attached');
+    }, 100);
   }
 
   attachEventListeners() {
-    document.getElementById('upload-btn').addEventListener('click', () => {
-      document.getElementById('upload-panel').classList.remove('hidden');
-    });
-
-    document.getElementById('library-btn').addEventListener('click', () => {
-      document.getElementById('library-panel').classList.remove('hidden');
-      this.loadUserAssets();
-    });
-
-    document.getElementById('browse-btn').addEventListener('click', () => {
-      document.getElementById('file-input').click();
-    });
-
-    document.getElementById('file-input').addEventListener('change', (e) => {
-      this.handleFiles(e.target.files);
-    });
-
-    const dropzone = document.getElementById('dropzone');
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      this.handleFiles(e.dataTransfer.files);
-    });
-    dropzone.addEventListener('click', () => document.getElementById('file-input').click());
-
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.updateFileAccept(e.target.dataset.type);
+    // Upload button
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+      uploadBtn.addEventListener('click', () => {
+        document.getElementById('upload-panel').classList.remove('hidden');
       });
-    });
+    }
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        this.filterAssets(e.target.dataset.filter);
+    // Library button
+    const libraryBtn = document.getElementById('library-btn');
+    if (libraryBtn) {
+      libraryBtn.addEventListener('click', () => {
+        document.getElementById('library-panel').classList.remove('hidden');
+        this.loadUserAssets();
       });
-    });
-  }
+    }
 
-  updateFileAccept(type) {
+    // Wallet button
+    const walletBtn = document.getElementById('wallet-btn');
+    if (walletBtn) {
+      walletBtn.addEventListener('click', () => {
+        document.getElementById('nft-panel').classList.remove('hidden');
+      });
+    }
+
+    // Browse button
+    const browseBtn = document.getElementById('browse-btn');
+    if (browseBtn) {
+      browseBtn.addEventListener('click', () => {
+        document.getElementById('file-input').click();
+      });
+    }
+
+    // File input
     const fileInput = document.getElementById('file-input');
-    const fileTypes = document.querySelector('.file-types');
-    
-    const config = {
-      image: { accept: 'image/*', text: 'JPG, PNG, GIF, WebP (max 10MB)' },
-      video: { accept: 'video/mp4,video/webm', text: 'MP4, WebM (max 100MB)' },
-      audio: { accept: 'audio/*', text: 'MP3, WAV, OGG (max 100MB)' },
-      model: { accept: '.glb,.gltf', text: 'GLB, GLTF (max 30MB)' }
-    };
-
-    fileInput.accept = config[type].accept;
-    fileTypes.textContent = `Supported: ${config[type].text}`;
-  }
-
-  async handleFiles(files) {
-    if (!files || files.length === 0) return;
-
-    const progressDiv = document.getElementById('upload-progress');
-    const progressFill = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    
-    progressDiv.classList.remove('hidden');
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const progress = ((i + 1) / files.length) * 100;
-      
-      progressFill.style.width = progress + '%';
-      progressText.textContent = `Uploading ${file.name}... (${i + 1}/${files.length})`;
-
-      try {
-        await this.uploadFile(file);
-      } catch (error) {
-        console.error('Upload failed:', file.name, error);
-        alert(`Failed to upload ${file.name}: ${error.message}`);
-      }
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        this.handleFiles(e.target.files);
+      });
     }
 
-    progressDiv.classList.add('hidden');
-    progressFill.style.width = '0%';
-    alert('Upload complete!');
-    this.loadUserAssets();
-  }
-
-  async uploadFile(file) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    // Check file size
-    const limits = {
-      image: 10 * 1024 * 1024,
-      video: 100 * 1024 * 1024,
-      audio: 100 * 1024 * 1024,
-      model: 30 * 1024 * 1024
-    };
-    
-    const type = this.getAssetType(file.type, file.name);
-    if (file.size > limits[type]) {
-      throw new Error(`File too large. Max size: ${limits[type] / 1024 / 1024}MB`);
-    }
-
-    // Convert to base64
-    const base64 = await this.fileToBase64(file);
-    
-    const { data, error } = await supabase
-      .from('assets')
-      .insert({
-        owner_id: user.id,
-        filename: file.name,
-        mime_type: file.type || 'application/octet-stream',
-        file_size: file.size,
-        r2_key: `${user.id}/${type}/${Date.now()}_${file.name}`,
-        cdn_url: base64,
-        asset_type: type,
-        scan_status: 'clean',
-        metadata: { uploaded_from: 'web', original_name: file.name }
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  getAssetType(mimeType, filename) {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
-    if (filename.endsWith('.glb') || filename.endsWith('.gltf')) return 'model';
-    return 'unknown';
-  }
-
-  async loadUserAssets() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: assets, error } = await supabase
-      .from('assets')
-      .select('*')
-      .eq('owner_id', user.id)
-      .eq('scan_status', 'clean')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Failed to load assets:', error);
-      return;
-    }
-
-    this.uploadedAssets = assets;
-    this.renderAssetGrid(assets);
-  }
-
-  renderAssetGrid(assets) {
-    const grid = document.getElementById('asset-grid');
-    
-    if (assets.length === 0) {
-      grid.innerHTML = '<p class="empty-state">No assets yet. Upload some!</p>';
-      return;
-    }
-
-    grid.innerHTML = assets.map(asset => `
-      <div class="asset-card" data-id="${asset.id}" data-type="${asset.asset_type}">
-        <div class="asset-preview">
-          ${this.getAssetPreview(asset)}
-        </div>
-        <div class="asset-info">
-          <p class="asset-name">${asset.filename}</p>
-          <p class="asset-meta">${this.formatFileSize(asset.file_size)}</p>
-        </div>
-        <button class="btn-place" onclick="window.assetManager.placeAsset('${asset.id}')">Place in World</button>
-      </div>
-    `).join('');
-  }
-
-  getAssetPreview(asset) {
-    switch (asset.asset_type) {
-      case 'image':
-        return `<img src="${asset.cdn_url}" alt="${asset.filename}">`;
-      case 'video':
-        return `<video src="${asset.cdn_url}" muted></video>`;
-      case 'audio':
-        return '<div class="icon-preview">🎵</div>';
-      case 'model':
-        return '<div class="icon-preview">📦</div>';
-      default:
-        return '<div class="icon-preview">📄</div>';
-    }
-  }
-
-  formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1024 / 1024).toFixed(0) + ' MB';
-  }
-
-  filterAssets(filter) {
-    const cards = document.querySelectorAll('.asset-card');
-    cards.forEach(card => {
-      if (filter === 'all' || card.dataset.type === filter) {
-        card.style.display = 'block';
-      } else {
-        card.style.display = 'none';
-      }
-    });
-  }
-
-  async placeAsset(assetId) {
-    const asset = this.uploadedAssets.find(a => a.id === assetId);
-    if (!asset) return;
-
-    const position = new THREE.Vector3();
-    this.camera.getWorldDirection(position);
-    position.multiplyScalar(5);
-    position.add(this.camera.position);
-    position.y = 1.5;
-
-    let object;
-    
-    switch (asset.asset_type) {
-      case 'image':
-        object = await this.createImageFrame(asset, position);
-        break;
-      case 'video':
-        object = await this.createVideoFrame(asset, position);
-        break;
-      case 'audio':
-        object = await this.createMusicSource(asset, position);
-        break;
-      case 'model':
-        object = await this.load3DModel(asset, position);
-        break;
-    }
-
-    if (object) {
-      this.scene.add(object);
-      this.assets.push({ asset, object });
-      await this.savePlacement(asset.id, position);
-      document.getElementById('library-panel').classList.add('hidden');
-    }
-  }
-
-  async createImageFrame(asset, position) {
-    return new Promise((resolve) => {
-      const texture = new THREE.TextureLoader().load(asset.cdn_url);
-      const geometry = new THREE.PlaneGeometry(2, 2);
-      const material = new THREE.MeshStandardMaterial({ map: texture, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(position);
-      mesh.userData.assetId = asset.id;
-      mesh.castShadow = true;
-      resolve(mesh);
-    });
-  }
-
-  async createVideoFrame(asset, position) {
-    const video = document.createElement('video');
-    video.src = asset.cdn_url;
-    video.crossOrigin = 'anonymous';
-    video.loop = true;
-    video.muted = true;
-    await video.play().catch(()=>{});
-
-    const texture = new THREE.VideoTexture(video);
-    const geometry = new THREE.PlaneGeometry(3, 2);
-    const material = new THREE.MeshStandardMaterial({ map: texture });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    mesh.userData.assetId = asset.id;
-    mesh.userData.video = video;
-    mesh.castShadow = true;
-    
-    return mesh;
-  }
-
-  async createMusicSource(asset, position) {
-    const geometry = new THREE.SphereGeometry(0.3, 32, 32);
-    const material = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff88,
-      emissive: 0x00ff88,
-      emissiveIntensity: 0.5
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    mesh.userData.assetId = asset.id;
-    mesh.castShadow = true;
-    
-    // Create positional audio
-    const audio = new THREE.PositionalAudio(this.listener);
-    const audioLoader = new THREE.AudioLoader();
-    
-    audioLoader.load(asset.cdn_url, (buffer) => {
-      audio.setBuffer(buffer);
-      audio.setRefDistance(5);
-      audio.setVolume(0.5);
-      audio.setLoop(true);
-      audio.play();
-    });
-    
-    mesh.add(audio);
-    mesh.userData.audio = audio;
-    
-    return mesh;
-  }
-
-  async load3DModel(asset, position) {
-    return new Promise((resolve, reject) => {
-      this.gltfLoader.load(
-        asset.cdn_url,
-        (gltf) => {
-          const model = gltf.scene;
-          model.position.copy(position);
-          model.userData.assetId = asset.id;
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
-          resolve(model);
-        },
-        undefined,
-        reject
-      );
-    });
-  }
-
-  async savePlacement(assetId, position) {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    await supabase.from('room_artworks').insert({
-      room_id: 'hall-of-clarity',
-      asset_id: assetId,
-      placed_by_id: user.id,
-      position_x: position.x,
-      position_y: position.y,
-      position_z: position.z,
-      scale: 1.0
-    });
-  }
-
-  async loadPlacedAssets() {
-    const { data, error } = await supabase
-      .from('room_artworks')
-      .select(`
-        *,
-        assets (*)
-      `)
-      .eq('room_id', 'hall-of-clarity');
-
-    if (error) {
-      console.error('Failed to load placed assets:', error);
-      return;
-    }
-
-    for (const placement of data) {
-      if (!placement.assets) continue;
-      
-      const position = new THREE.Vector3(
-        placement.position_x,
-        placement.position_y,
-        placement.position_z
-      );
-
-      let object;
-      const asset = placement.assets;
-      
-      switch (asset.asset_type) {
-        case 'image':
-          object = await this.createImageFrame(asset, position);
-          break;
-        case 'video':
-          object = await this.createVideoFrame(asset, position);
-          break;
-        case 'audio':
-          object = await this.createMusicSource(asset, position);
-          break;
-        case 'model':
-          object = await this.load3DModel(asset, position);
-          break;
-      }
-
-      if (object) {
-        this.scene.add(object);
-        this.assets.push({ asset, object });
-      }
-    }
-  }
-
-  update() {
-    // Rotate music sources
-    this.assets.forEach(({ object }) => {
-      if (object.userData.audio) {
-        object.rotation.y += 0.01;
-      }
-    });
-  }
-
-  closeUploadPanel() {
-    document.getElementById('upload-panel').classList.add('hidden');
-  }
-
-  closeLibraryPanel() {
-    document.getElementById('library-panel').classList.add('hidden');
-  }
-}
+    // Dropzone
+    const dropzone = document.getElementById('dropzone');
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        this.handleFiles(e.dataTransfer.files);
+      });
+      dropzone.addEventListener('click', () => {
