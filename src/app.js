@@ -195,12 +195,19 @@ function initializeWorld(user) {
     }
   });
 
-  // === ASSET MANAGER ===
-  setTimeout(() => {
+// === ASSET MANAGER ===
+setTimeout(() => {
+  try {
     assetManager = new AssetManager(scene, camera, listener);
     window.assetManager = assetManager;
     console.log('✓ Asset Manager initialized');
-  }, 1000);
+    console.log('✓ Upload button:', document.getElementById('upload-btn'));
+    console.log('✓ Library button:', document.getElementById('library-btn'));
+    console.log('✓ Wallet button:', document.getElementById('wallet-btn'));
+  } catch (error) {
+    console.error('❌ Failed to initialize AssetManager:', error);
+  }
+}, 2000); // Increased to 2 seconds
 
   // === ANIMATION LOOP ===
   const raycaster = new THREE.Raycaster();
