@@ -885,8 +885,8 @@ class AssetManager {
   async savePlacement(assetId, position) {
     const { data: { user } } = await supabase.auth.getUser();
     
-    await supabase.from('room_artworks').insert({
-      room_id: 'hall-of-clarity',
+  await supabase.from('room_artworks').insert({
+      room_id: 'f3881022-9ad0-4c69-a12a-94d0059fabb0',
       asset_id: assetId,
       placed_by_id: user.id,
       position_x: position.x,
