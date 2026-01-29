@@ -193,9 +193,12 @@ function initializeWorld(user) {
     }
   });
 
-  // === ASSET MANAGER ===
+ // === ASSET MANAGER ===
+setTimeout(() => {
   assetManager = new AssetManager(scene, camera, listener);
   window.assetManager = assetManager;
+  console.log('✓ Asset Manager initialized');
+}, 1000);
 
   // === ANIMATION LOOP ===
   const raycaster = new THREE.Raycaster();
