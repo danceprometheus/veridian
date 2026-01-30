@@ -717,3 +717,29 @@ button:disabled {
 .action-btn:hover {
   transform: scale(1.05);
 }
+/* CRITICAL: Action buttons click fix */
+.action-buttons {
+  pointer-events: all !important;
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+.action-btn {
+  pointer-events: all !important;
+  cursor: pointer !important;
+  position: relative !important;
+}
+
+.panel {
+  pointer-events: all !important;
+  z-index: 100000 !important;
+}
+
+/* Ensure canvas doesn't block UI */
+#canvas-container {
+  pointer-events: none !important;
+}
+
+#canvas-container canvas {
+  pointer-events: all !important;
+}
