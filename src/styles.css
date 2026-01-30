@@ -702,3 +702,18 @@ button:disabled {
 .hidden {
   display: none !important;
 }
+/* CRITICAL FIX - Must be at end of file */
+.action-buttons {
+  pointer-events: all !important;
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+.action-btn {
+  pointer-events: all !important;
+  cursor: pointer !important;
+}
+
+.action-btn:hover {
+  transform: scale(1.05);
+}
