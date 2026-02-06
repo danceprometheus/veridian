@@ -1,0 +1,36 @@
+# Veridian Multiplayer Server — Fly.io Configuration
+app = "veridian-d3rswa"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 2567
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  # Increase concurrency limits for WebSocket connections
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+# Keep-alive for long-lived WebSocket connections
+[http_service.http_options]
+  idle_timeout = 300
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[env]
+  PORT = "2567"
+  NODE_ENV = "production"
+
+# Health check to prevent Fly from killing the machine
+[[services.tcp_checks]]
+  grace_period = "10s"
+  interval = "15s"
+  timeout = "5s"
