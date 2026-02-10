@@ -1,0 +1,18 @@
+# Progress Log
+Run: d55995fb-a8fe-439a-9eea-f55bd7865380
+Task: In danceprometheus/veridian, upgrade Angela companion to support better interaction controls (follow/stay), smoother lip-sync timing, and clearer in-world UI prompts.
+Started: 2026-02-10T19:17:00Z
+
+## Codebase Patterns
+- Angela companion logic lives in `src/angel-companion.js`; keep scene/bootstrap wiring in `src/app.js` and extend companion behavior through small modules.
+- This repo can use Node's built-in test runner (`node --test`) for unit tests in `src/*.test.js` without extra dependencies.
+
+---
+
+## 2026-02-10T19:25:00Z - US-001: Add Angela companion behavior mode state and control command plumbing
+- Added a dedicated behavior mode module with deterministic transitions (`follow`/`stay`) and command application helpers.
+- Integrated behavior state into `AngelCompanion`, including reusable mode command handler hooks and movement gating in `update()`.
+- Added tests for mode transitions, command handling, and movement gating behavior.
+- Files changed: `src/angel-behavior-mode.js`, `src/angel-companion.js`, `src/angel-behavior-mode.test.js`, `package.json`, `progress.txt`.
+- **Learnings:** Extending companion behavior via focused state modules keeps `app.js` initialization untouched while making mode logic directly testable.
+---
