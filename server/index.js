@@ -53,7 +53,102 @@ app.use(cors(corsOptions));
 // Explicitly handle preflight for ALL routes (including Colyseus matchmaking)
 app.options('*', cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// ─── Angela Companion API (chat + voice) ─────────────────────────
+app.post('/api/angel/chat', async (req, res) => {
+  try {
+    const message = (req.body?.message || '').toString().trim();
+    const systemPrompt = (req.body?.systemPrompt || '').toString().trim();
+
+    if (!message) {
+      return res.status(400).json({ error: 'message is required' });
+    }
+
+    const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || 'http://127.0.0.1:18789';
+    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+
+    if (!gatewayToken) {
+      return res.json({
+        reply: 'I am here with you in Veridian. (Set OPENCLAW_GATEWAY_TOKEN on the server to connect me to live OpenClaw intelligence.)',
+      });
+    }
+
+    const response = await fetch(`${gatewayUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${gatewayToken}`,
+        'x-openclaw-agent-id': process.env.OPENCLAW_AGENT_ID || 'main',
+      },
+      body: JSON.stringify({
+        model: 'openclaw:main',
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          { role: 'user', content: message },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`OpenClaw chat failed (${response.status}): ${body.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || 'I am here.';
+    return res.json({ reply });
+  } catch (err) {
+    console.error('Angel chat error:', err.message || err);
+    return res.status(500).json({ error: 'angel chat failed' });
+  }
+});
+
+app.post('/api/angel/tts', async (req, res) => {
+  try {
+    const text = (req.body?.text || '').toString().trim();
+    if (!text) return res.status(400).json({ error: 'text is required' });
+
+    const elevenKey = process.env.ELEVENLABS_API_KEY;
+    const voiceId = process.env.ELEVENLABS_VOICE_ID;
+
+    if (!elevenKey || !voiceId) {
+      return res.status(204).end();
+    }
+
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.78,
+          style: 0.25,
+          use_speaker_boost: true,
+        },
+      }),
+    });
+
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      throw new Error(`ElevenLabs failed (${r.status}): ${body.slice(0, 200)}`);
+    }
+
+    const audioBuffer = Buffer.from(await r.arrayBuffer());
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(audioBuffer);
+  } catch (err) {
+    console.error('Angel TTS error:', err.message || err);
+    return res.status(204).end();
+  }
+});
 
 // ─── Health / Info Routes ─────────────────────────────────────────
 app.get('/', (req, res) => {

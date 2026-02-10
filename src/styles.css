@@ -641,6 +641,86 @@ button:disabled {
 }
 
 /* Messages */
+#angel-chat-panel {
+  position: fixed;
+  right: 24px;
+  top: 110px;
+  width: 340px;
+  max-height: 52vh;
+  background: rgba(8, 14, 24, 0.92);
+  border: 1px solid rgba(212, 232, 237, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  z-index: 1200;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+#angel-chat-panel.show {
+  display: flex;
+}
+
+.angel-chat-header {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 1px;
+  font-size: 15px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(212, 232, 237, 0.22);
+  background: linear-gradient(90deg, rgba(151, 186, 230, 0.22), rgba(255, 238, 196, 0.18));
+}
+
+.angel-chat-log {
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 180px;
+}
+
+.angel-msg {
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.angel-msg-bot {
+  background: rgba(126, 170, 218, 0.2);
+  border: 1px solid rgba(126, 170, 218, 0.25);
+}
+
+.angel-msg-user {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  align-self: flex-end;
+}
+
+.angel-chat-input-row {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid rgba(212, 232, 237, 0.2);
+  padding: 10px;
+}
+
+#angel-chat-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(212, 232, 237, 0.25);
+  border-radius: 8px;
+  color: #e8f4f8;
+  padding: 10px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+}
+
+#angel-chat-input:focus {
+  outline: none;
+  border-color: rgba(212, 232, 237, 0.55);
+}
+
 #message-display {
   position: fixed;
   bottom: 100px;

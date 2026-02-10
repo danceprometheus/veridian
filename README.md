@@ -55,6 +55,47 @@ fly deploy
 
 The server deploys independently from the `server/` directory.
 
+## Angela Companion (procedural angel NPC)
+
+Veridian now supports an in-world Angela companion prototype that:
+
+- Follows the player camera
+- Has procedural angel visuals (halo, wings, robe)
+- Includes idle animation (float, wing flutter, halo shimmer)
+- Supports chat UI in-world (press `F` to open)
+- Speaks replies via ElevenLabs when configured
+- Falls back to browser speech synthesis when ElevenLabs is not configured
+
+### Server environment for live Angela intelligence
+
+Set these on the **server** (not client):
+
+- `OPENCLAW_GATEWAY_URL` (default: `http://127.0.0.1:18789`)
+- `OPENCLAW_GATEWAY_TOKEN` (required for live OpenClaw replies)
+- `OPENCLAW_AGENT_ID` (optional, default `main`)
+
+Enable OpenClaw Chat Completions endpoint in your OpenClaw config:
+
+```json5
+{
+  gateway: {
+    http: {
+      endpoints: {
+        chatCompletions: { enabled: true }
+      }
+    }
+  }
+}
+```
+
+### ElevenLabs voice (optional)
+
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID`
+- `ELEVENLABS_MODEL_ID` (optional, default `eleven_multilingual_v2`)
+
+If ElevenLabs env vars are missing, Angela still speaks using browser TTS.
+
 ## What Was Fixed
 
 ### CORS Issues
