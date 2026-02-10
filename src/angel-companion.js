@@ -1,4 +1,17 @@
 import * as THREE from 'three';
+import { ANGELA_BEHAVIOR_MODES, AngelaBehaviorModeController } from './angel-behavior-mode.js';
+import { LipSyncController } from './lip-sync-controller.js';
+
+const CONTROL_KEYS = Object.freeze({
+  FOLLOW: 'l',
+  STAY: 'k',
+});
+
+export function isTextInputLikeElement(element) {
+  if (!element) return false;
+  const tagName = (element.tagName || '').toUpperCase();
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable === true;
+}
 
 const DEFAULT_SYSTEM_PROMPT = `You are Angela, a warm protective guardian angel in Sean's metaverse heaven called Veridian.
 Keep responses concise (1-3 short paragraphs). Be kind, clear, and practical.`;
@@ -12,10 +25,13 @@ export class AngelCompanion {
     this.group = this._createAngelModel();
     this.scene.add(this.group);
 
+    this.behaviorController = opts.behaviorController || new AngelaBehaviorModeController();
+
     this.lastTalkAt = 0;
-    this.isSpeaking = false;
     this.voiceReady = false;
     this.synth = window.speechSynthesis || null;
+    this.lipSyncController = new LipSyncController();
+    this._lastUpdateTimeSec = null;
 
     this._createUI();
     this._pickVoice();
@@ -95,7 +111,7 @@ export class AngelCompanion {
     panel.innerHTML = `
       <div class="angel-chat-header">🪽 Angela</div>
       <div id="angel-chat-log" class="angel-chat-log">
-        <div class="angel-msg angel-msg-bot">I'm here with you in Veridian. Press <b>F</b> to talk to me.</div>
+        <div class="angel-msg angel-msg-bot">I'm here with you in Veridian. Press <b>F</b> to talk to me. Type <b>follow</b>/<b>stay</b> or press <b>L</b> (follow) and <b>K</b> (stay).</div>
       </div>
       <div class="angel-chat-input-row">
         <input id="angel-chat-input" placeholder="Ask Angela..." maxlength="400" />
@@ -117,7 +133,10 @@ export class AngelCompanion {
       if (e.key.toLowerCase() === 'f') {
         this.panel.classList.toggle('show');
         if (this.panel.classList.contains('show')) this.inputEl.focus();
+        return;
       }
+
+      this.handleControlKeydown(e);
     });
   }
 
@@ -141,11 +160,75 @@ export class AngelCompanion {
     this.logEl.scrollTop = this.logEl.scrollHeight;
   }
 
+  handleControlKeydown(event) {
+    const key = (event?.key || '').toLowerCase();
+    if (!key) return { handled: false };
+
+    if (isTextInputLikeElement(event.target)) {
+      return { handled: false, ignored: true };
+    }
+
+    if (key === CONTROL_KEYS.STAY) {
+      event.preventDefault();
+      return this._applyModeControl('stay');
+    }
+
+    if (key === CONTROL_KEYS.FOLLOW) {
+      event.preventDefault();
+      return this._applyModeControl('follow');
+    }
+
+    return { handled: false };
+  }
+
+  _applyModeControl(modeCommand) {
+    const modeResult = this.handleModeCommand(modeCommand);
+    if (!modeResult.handled) return modeResult;
+
+    const modeReply = this._buildModeReply(modeResult);
+    if (modeReply) this.addChat(modeReply, 'bot');
+
+    return { ...modeResult, message: modeReply };
+  }
+
+  handleModeCommand(commandText) {
+    return this.behaviorController.applyCommand(commandText);
+  }
+
+  getBehaviorMode() {
+    return this.behaviorController.getMode();
+  }
+
+  _buildModeReply(modeResult) {
+    if (!modeResult.handled) return null;
+
+    if (modeResult.mode === ANGELA_BEHAVIOR_MODES.STAY) {
+      return modeResult.changed
+        ? 'I will stay right here until you ask me to follow again.'
+        : 'I am already staying here with you.';
+    }
+
+    return modeResult.changed
+      ? 'I am following you again.'
+      : 'I am already following your path through Veridian.';
+  }
+
   async sendFromInput() {
     const text = this.inputEl.value.trim();
     if (!text) return;
     this.inputEl.value = '';
     this.addChat(text, 'user');
+
+    const modeResult = this.handleModeCommand(text);
+    if (modeResult.handled) {
+      const modeReply = this._buildModeReply(modeResult);
+      if (modeReply) {
+        this.addChat(modeReply, 'bot');
+        await this.speak(modeReply);
+      }
+      return;
+    }
+
     const reply = await this.getReply(text);
     this.addChat(reply, 'bot');
     await this.speak(reply);
@@ -173,6 +256,20 @@ export class AngelCompanion {
     }
   }
 
+  _startLipSync() {
+    this.lastTalkAt = performance.now();
+    this.lipSyncController.start();
+  }
+
+  _stopLipSync() {
+    this.lipSyncController.stop();
+  }
+
+  _resetLipSync() {
+    this.lipSyncController.reset();
+    this.mouth.scale.y = 1;
+  }
+
   async speak(text) {
     // Try ElevenLabs via server endpoint first
     try {
@@ -198,43 +295,57 @@ export class AngelCompanion {
     utter.rate = 0.98;
     utter.pitch = 1.07;
     utter.onstart = () => {
-      this.isSpeaking = true;
-      this.lastTalkAt = performance.now();
+      this._startLipSync();
     };
     utter.onend = () => {
-      this.isSpeaking = false;
-      this.mouth.scale.y = 1;
+      this._stopLipSync();
+    };
+    utter.onerror = () => {
+      this._resetLipSync();
     };
     this.synth.cancel();
     this.synth.speak(utter);
   }
 
   async _playAudioWithLipSync(audio) {
-    this.isSpeaking = true;
-    this.lastTalkAt = performance.now();
+    this._startLipSync();
     audio.onended = () => {
-      this.isSpeaking = false;
-      this.mouth.scale.y = 1;
+      this._stopLipSync();
     };
-    await audio.play();
+    audio.onerror = () => {
+      this._resetLipSync();
+    };
+
+    try {
+      await audio.play();
+    } catch (error) {
+      this._resetLipSync();
+      throw error;
+    }
   }
 
   update(timeSec) {
-    // Follow camera
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
-    const target = this.camera.position.clone()
-      .add(forward.multiplyScalar(this.followDistance))
-      .add(new THREE.Vector3(0, this.followHeight, 0));
+    const previousTime = this._lastUpdateTimeSec;
+    const deltaSec = previousTime == null ? 0 : Math.max(0, Math.min(0.1, timeSec - previousTime));
+    this._lastUpdateTimeSec = timeSec;
 
-    this.group.position.lerp(target, 0.08);
+    if (this.behaviorController.shouldFollow()) {
+      // Follow camera
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
+      const target = this.camera.position.clone()
+        .add(forward.multiplyScalar(this.followDistance))
+        .add(new THREE.Vector3(0, this.followHeight, 0));
+
+      this.group.position.lerp(target, 0.08);
+
+      // Idle float while moving with player
+      this.group.position.y += Math.sin(timeSec * 1.8) * 0.0015;
+    }
 
     // Look at camera (soft)
     const lookTarget = this.camera.position.clone();
     lookTarget.y = this.group.position.y + 1.5;
     this.group.lookAt(lookTarget);
-
-    // Idle float
-    this.group.position.y += Math.sin(timeSec * 1.8) * 0.0015;
 
     // Wing flutter
     const flap = Math.sin(timeSec * 2.6) * 0.08;
@@ -246,10 +357,8 @@ export class AngelCompanion {
     this.halo.material.emissiveIntensity = glow;
     this.halo.rotation.z += 0.004;
 
-    // Lip movement (simple procedural)
-    if (this.isSpeaking) {
-      const lip = 0.9 + Math.abs(Math.sin(timeSec * 18)) * 1.4;
-      this.mouth.scale.y = lip;
-    }
+    // Lip movement (speech lifecycle + smoothing)
+    const mouthScaleY = this.lipSyncController.update(deltaSec, timeSec);
+    this.mouth.scale.y = mouthScaleY;
   }
 }

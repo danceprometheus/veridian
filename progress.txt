@@ -1,0 +1,37 @@
+# Progress Log
+Run: d55995fb-a8fe-439a-9eea-f55bd7865380
+Task: In danceprometheus/veridian, upgrade Angela companion to support better interaction controls (follow/stay), smoother lip-sync timing, and clearer in-world UI prompts.
+Started: 2026-02-10T19:17:00Z
+
+## Codebase Patterns
+- Angela companion logic lives in `src/angel-companion.js`; keep scene/bootstrap wiring in `src/app.js` and extend companion behavior through small modules.
+- This repo can use Node's built-in test runner (`node --test`) for unit tests in `src/*.test.js` without extra dependencies.
+- Global key handlers should ignore follow/stay control keys when focus is in text-entry elements (`input`, `textarea`, or contenteditable) to avoid chat/input conflicts.
+- Time-based avatar animation state that must be testable should live in focused controllers (e.g., lip-sync envelope/attack/release) and be driven by lifecycle hooks from playback APIs.
+
+---
+
+## 2026-02-10T19:25:00Z - US-001: Add Angela companion behavior mode state and control command plumbing
+- Added a dedicated behavior mode module with deterministic transitions (`follow`/`stay`) and command application helpers.
+- Integrated behavior state into `AngelCompanion`, including reusable mode command handler hooks and movement gating in `update()`.
+- Added tests for mode transitions, command handling, and movement gating behavior.
+- Files changed: `src/angel-behavior-mode.js`, `src/angel-companion.js`, `src/angel-behavior-mode.test.js`, `package.json`, `progress.txt`.
+- **Learnings:** Extending companion behavior via focused state modules keeps `app.js` initialization untouched while making mode logic directly testable.
+---
+
+## 2026-02-10T19:35:00Z - US-002: Implement in-world follow/stay interaction controls
+- Added in-world keyboard control plumbing for Angela mode switching: `K` sets `stay`, `L` sets `follow`.
+- Added a text-input guard for control key handling so mode switches are ignored while typing in chat or other text fields.
+- Kept existing bootstrap/app structure untouched; integrated controls inside `AngelCompanion` event handling.
+- Expanded tests to cover control key behavior and input-focus conflict protection.
+- Files changed: `src/angel-companion.js`, `src/angel-behavior-mode.test.js`, `progress.txt`.
+- **Learnings:** Companion control hotkeys should be routed through companion-level handlers and validated against input focus to prevent gameplay/chat key collisions.
+---
+## 2026-02-10T19:42:00Z - US-003: Improve lip-sync timing with speech lifecycle and smoothing
+- Replaced direct sine-only speaking animation with a dedicated `LipSyncController` that tracks speech lifecycle state and applies attack/release smoothing.
+- Wired lip-sync lifecycle start/stop/reset hooks into both ElevenLabs audio playback and browser speech synthesis fallback paths while keeping the existing `/api/angel/tts` then fallback pipeline unchanged.
+- Updated companion update loop to compute delta-time and drive mouth scale through the controller so transitions ramp in/out without one-frame hard jumps.
+- Added focused unit tests for lip-sync state transitions, smoothing behavior, and audio-path lifecycle hooks.
+- Files changed: `src/angel-companion.js`, `src/lip-sync-controller.js`, `src/lip-sync-controller.test.js`, `src/angel-behavior-mode.test.js`, `progress.txt`.
+- **Learnings:** Speech animation quality is more reliable when playback event hooks own lifecycle state and frame updates only consume smoothed controller outputs.
+---

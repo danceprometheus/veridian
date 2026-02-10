@@ -5,6 +5,7 @@ import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { VeridianRoom } from './rooms/VeridianRoom.js';
 import dotenv from 'dotenv';
+import { sanitizeUserMessage, parseCompanionCommand } from './angel-guards.js';
 
 dotenv.config();
 
@@ -58,11 +59,21 @@ app.use(express.json({ limit: '1mb' }));
 // ─── Angela Companion API (chat + voice) ─────────────────────────
 app.post('/api/angel/chat', async (req, res) => {
   try {
-    const message = (req.body?.message || '').toString().trim();
+    const rawMessage = req.body?.message;
     const systemPrompt = (req.body?.systemPrompt || '').toString().trim();
 
-    if (!message) {
-      return res.status(400).json({ error: 'message is required' });
+    const sanitized = sanitizeUserMessage(rawMessage);
+    if (!sanitized.ok) {
+      return res.status(400).json({
+        error: sanitized.reason === 'too_long' ? `message too long (max ${sanitized.max})` : 'message is required',
+      });
+    }
+
+    const message = sanitized.value;
+
+    const command = parseCompanionCommand(message);
+    if (command.handled) {
+      return res.json({ reply: command.reply, command: command.command });
     }
 
     const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || 'http://127.0.0.1:18789';

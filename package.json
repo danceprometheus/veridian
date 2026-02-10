@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "node --check src/*.js && node --check server/*.js",
+    "test": "node --test",
+    "test:server": "node --test server/*.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
