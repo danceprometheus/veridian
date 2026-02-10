@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { ANGELA_BEHAVIOR_MODES, AngelaBehaviorModeController } from './angel-behavior-mode.js';
 import { AngelCompanion, isTextInputLikeElement } from './angel-companion.js';
+import { LipSyncController } from './lip-sync-controller.js';
 
 test('AngelaBehaviorModeController transitions are deterministic', () => {
   const controller = new AngelaBehaviorModeController();
@@ -82,7 +83,8 @@ test('AngelCompanion.update gates movement based on behavior mode', () => {
   companion.rightWing = { rotation: { y: 0 } };
   companion.halo = { material: { emissiveIntensity: 0 }, rotation: { z: 0 } };
   companion.mouth = { scale: { y: 1 } };
-  companion.isSpeaking = false;
+  companion.lipSyncController = new LipSyncController();
+  companion._lastUpdateTimeSec = null;
 
   companion.update(1);
   assert.notEqual(companion.group.position.z, 0);

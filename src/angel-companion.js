@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ANGELA_BEHAVIOR_MODES, AngelaBehaviorModeController } from './angel-behavior-mode.js';
+import { LipSyncController } from './lip-sync-controller.js';
 
 const CONTROL_KEYS = Object.freeze({
   FOLLOW: 'l',
@@ -27,9 +28,10 @@ export class AngelCompanion {
     this.behaviorController = opts.behaviorController || new AngelaBehaviorModeController();
 
     this.lastTalkAt = 0;
-    this.isSpeaking = false;
     this.voiceReady = false;
     this.synth = window.speechSynthesis || null;
+    this.lipSyncController = new LipSyncController();
+    this._lastUpdateTimeSec = null;
 
     this._createUI();
     this._pickVoice();
@@ -254,6 +256,20 @@ export class AngelCompanion {
     }
   }
 
+  _startLipSync() {
+    this.lastTalkAt = performance.now();
+    this.lipSyncController.start();
+  }
+
+  _stopLipSync() {
+    this.lipSyncController.stop();
+  }
+
+  _resetLipSync() {
+    this.lipSyncController.reset();
+    this.mouth.scale.y = 1;
+  }
+
   async speak(text) {
     // Try ElevenLabs via server endpoint first
     try {
@@ -279,28 +295,40 @@ export class AngelCompanion {
     utter.rate = 0.98;
     utter.pitch = 1.07;
     utter.onstart = () => {
-      this.isSpeaking = true;
-      this.lastTalkAt = performance.now();
+      this._startLipSync();
     };
     utter.onend = () => {
-      this.isSpeaking = false;
-      this.mouth.scale.y = 1;
+      this._stopLipSync();
+    };
+    utter.onerror = () => {
+      this._resetLipSync();
     };
     this.synth.cancel();
     this.synth.speak(utter);
   }
 
   async _playAudioWithLipSync(audio) {
-    this.isSpeaking = true;
-    this.lastTalkAt = performance.now();
+    this._startLipSync();
     audio.onended = () => {
-      this.isSpeaking = false;
-      this.mouth.scale.y = 1;
+      this._stopLipSync();
     };
-    await audio.play();
+    audio.onerror = () => {
+      this._resetLipSync();
+    };
+
+    try {
+      await audio.play();
+    } catch (error) {
+      this._resetLipSync();
+      throw error;
+    }
   }
 
   update(timeSec) {
+    const previousTime = this._lastUpdateTimeSec;
+    const deltaSec = previousTime == null ? 0 : Math.max(0, Math.min(0.1, timeSec - previousTime));
+    this._lastUpdateTimeSec = timeSec;
+
     if (this.behaviorController.shouldFollow()) {
       // Follow camera
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).setY(0).normalize();
@@ -329,10 +357,8 @@ export class AngelCompanion {
     this.halo.material.emissiveIntensity = glow;
     this.halo.rotation.z += 0.004;
 
-    // Lip movement (simple procedural)
-    if (this.isSpeaking) {
-      const lip = 0.9 + Math.abs(Math.sin(timeSec * 18)) * 1.4;
-      this.mouth.scale.y = lip;
-    }
+    // Lip movement (speech lifecycle + smoothing)
+    const mouthScaleY = this.lipSyncController.update(deltaSec, timeSec);
+    this.mouth.scale.y = mouthScaleY;
   }
 }

@@ -7,6 +7,7 @@ Started: 2026-02-10T19:17:00Z
 - Angela companion logic lives in `src/angel-companion.js`; keep scene/bootstrap wiring in `src/app.js` and extend companion behavior through small modules.
 - This repo can use Node's built-in test runner (`node --test`) for unit tests in `src/*.test.js` without extra dependencies.
 - Global key handlers should ignore follow/stay control keys when focus is in text-entry elements (`input`, `textarea`, or contenteditable) to avoid chat/input conflicts.
+- Time-based avatar animation state that must be testable should live in focused controllers (e.g., lip-sync envelope/attack/release) and be driven by lifecycle hooks from playback APIs.
 
 ---
 
@@ -25,4 +26,12 @@ Started: 2026-02-10T19:17:00Z
 - Expanded tests to cover control key behavior and input-focus conflict protection.
 - Files changed: `src/angel-companion.js`, `src/angel-behavior-mode.test.js`, `progress.txt`.
 - **Learnings:** Companion control hotkeys should be routed through companion-level handlers and validated against input focus to prevent gameplay/chat key collisions.
+---
+## 2026-02-10T19:42:00Z - US-003: Improve lip-sync timing with speech lifecycle and smoothing
+- Replaced direct sine-only speaking animation with a dedicated `LipSyncController` that tracks speech lifecycle state and applies attack/release smoothing.
+- Wired lip-sync lifecycle start/stop/reset hooks into both ElevenLabs audio playback and browser speech synthesis fallback paths while keeping the existing `/api/angel/tts` then fallback pipeline unchanged.
+- Updated companion update loop to compute delta-time and drive mouth scale through the controller so transitions ramp in/out without one-frame hard jumps.
+- Added focused unit tests for lip-sync state transitions, smoothing behavior, and audio-path lifecycle hooks.
+- Files changed: `src/angel-companion.js`, `src/lip-sync-controller.js`, `src/lip-sync-controller.test.js`, `src/angel-behavior-mode.test.js`, `progress.txt`.
+- **Learnings:** Speech animation quality is more reliable when playback event hooks own lifecycle state and frame updates only consume smoothed controller outputs.
 ---
