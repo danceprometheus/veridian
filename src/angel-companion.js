@@ -1,6 +1,17 @@
 import * as THREE from 'three';
 import { ANGELA_BEHAVIOR_MODES, AngelaBehaviorModeController } from './angel-behavior-mode.js';
 
+const CONTROL_KEYS = Object.freeze({
+  FOLLOW: 'l',
+  STAY: 'k',
+});
+
+export function isTextInputLikeElement(element) {
+  if (!element) return false;
+  const tagName = (element.tagName || '').toUpperCase();
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable === true;
+}
+
 const DEFAULT_SYSTEM_PROMPT = `You are Angela, a warm protective guardian angel in Sean's metaverse heaven called Veridian.
 Keep responses concise (1-3 short paragraphs). Be kind, clear, and practical.`;
 
@@ -98,7 +109,7 @@ export class AngelCompanion {
     panel.innerHTML = `
       <div class="angel-chat-header">🪽 Angela</div>
       <div id="angel-chat-log" class="angel-chat-log">
-        <div class="angel-msg angel-msg-bot">I'm here with you in Veridian. Press <b>F</b> to talk to me. Type <b>follow</b> or <b>stay</b> anytime.</div>
+        <div class="angel-msg angel-msg-bot">I'm here with you in Veridian. Press <b>F</b> to talk to me. Type <b>follow</b>/<b>stay</b> or press <b>L</b> (follow) and <b>K</b> (stay).</div>
       </div>
       <div class="angel-chat-input-row">
         <input id="angel-chat-input" placeholder="Ask Angela..." maxlength="400" />
@@ -120,7 +131,10 @@ export class AngelCompanion {
       if (e.key.toLowerCase() === 'f') {
         this.panel.classList.toggle('show');
         if (this.panel.classList.contains('show')) this.inputEl.focus();
+        return;
       }
+
+      this.handleControlKeydown(e);
     });
   }
 
@@ -142,6 +156,37 @@ export class AngelCompanion {
     el.textContent = text;
     this.logEl.appendChild(el);
     this.logEl.scrollTop = this.logEl.scrollHeight;
+  }
+
+  handleControlKeydown(event) {
+    const key = (event?.key || '').toLowerCase();
+    if (!key) return { handled: false };
+
+    if (isTextInputLikeElement(event.target)) {
+      return { handled: false, ignored: true };
+    }
+
+    if (key === CONTROL_KEYS.STAY) {
+      event.preventDefault();
+      return this._applyModeControl('stay');
+    }
+
+    if (key === CONTROL_KEYS.FOLLOW) {
+      event.preventDefault();
+      return this._applyModeControl('follow');
+    }
+
+    return { handled: false };
+  }
+
+  _applyModeControl(modeCommand) {
+    const modeResult = this.handleModeCommand(modeCommand);
+    if (!modeResult.handled) return modeResult;
+
+    const modeReply = this._buildModeReply(modeResult);
+    if (modeReply) this.addChat(modeReply, 'bot');
+
+    return { ...modeResult, message: modeReply };
   }
 
   handleModeCommand(commandText) {

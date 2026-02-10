@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { ANGELA_BEHAVIOR_MODES, AngelaBehaviorModeController } from './angel-behavior-mode.js';
-import { AngelCompanion } from './angel-companion.js';
+import { AngelCompanion, isTextInputLikeElement } from './angel-companion.js';
 
 test('AngelaBehaviorModeController transitions are deterministic', () => {
   const controller = new AngelaBehaviorModeController();
@@ -92,4 +92,47 @@ test('AngelCompanion.update gates movement based on behavior mode', () => {
   companion.update(1.1);
 
   assert.equal(companion.group.position.z, zAfterFollow);
+});
+
+test('keyboard controls switch modes and ignore active text inputs', () => {
+  const companion = Object.create(AngelCompanion.prototype);
+  companion.behaviorController = new AngelaBehaviorModeController(ANGELA_BEHAVIOR_MODES.FOLLOW);
+  companion.addChat = () => {};
+
+  const textInputEvent = {
+    key: 'k',
+    target: { tagName: 'INPUT' },
+    preventDefault() {},
+  };
+  const ignored = companion.handleControlKeydown(textInputEvent);
+  assert.equal(ignored.handled, false);
+  assert.equal(companion.behaviorController.getMode(), ANGELA_BEHAVIOR_MODES.FOLLOW);
+
+  let prevented = false;
+  const stayEvent = {
+    key: 'k',
+    target: { tagName: 'DIV' },
+    preventDefault() {
+      prevented = true;
+    },
+  };
+  const stayResult = companion.handleControlKeydown(stayEvent);
+  assert.equal(stayResult.handled, true);
+  assert.equal(prevented, true);
+  assert.equal(companion.behaviorController.getMode(), ANGELA_BEHAVIOR_MODES.STAY);
+
+  const followResult = companion.handleControlKeydown({
+    key: 'l',
+    target: { tagName: 'DIV' },
+    preventDefault() {},
+  });
+  assert.equal(followResult.handled, true);
+  assert.equal(companion.behaviorController.getMode(), ANGELA_BEHAVIOR_MODES.FOLLOW);
+});
+
+test('isTextInputLikeElement identifies text entry elements', () => {
+  assert.equal(isTextInputLikeElement({ tagName: 'input' }), true);
+  assert.equal(isTextInputLikeElement({ tagName: 'textarea' }), true);
+  assert.equal(isTextInputLikeElement({ tagName: 'div', isContentEditable: true }), true);
+  assert.equal(isTextInputLikeElement({ tagName: 'div' }), false);
 });
