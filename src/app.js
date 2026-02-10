@@ -5,12 +5,14 @@ import { getCurrentUser } from './auth.js';
 import { supabase } from './supabase.js';
 import { WalletManager } from './wallet.js';
 import { MultiplayerClient } from './multiplayer.js';
+import { AngelCompanion } from './angel-companion.js';
 import './styles.css';
 
 console.log('🎮 Veridian with full features loading...');
 
 let assetManager = null;
 let multiplayerClient = null;
+let angelCompanion = null;
 
 window.addEventListener('userAuthenticated', (event) => {
   const user = event.detail;
@@ -45,6 +47,11 @@ function initializeWorld(user) {
   directionalLight.position.set(50, 100, 50);
   directionalLight.castShadow = true;
   scene.add(directionalLight);
+
+  angelCompanion = new AngelCompanion(scene, camera, {
+    followDistance: 2.8,
+    followHeight: 0.2,
+  });
 
   const terrainGeometry = new THREE.PlaneGeometry(400, 400, 50, 50);
   const terrainMaterial = new THREE.MeshStandardMaterial({
@@ -471,6 +478,10 @@ function initializeWorld(user) {
 
     if (assetManager) {
       assetManager.update();
+    }
+
+    if (angelCompanion) {
+      angelCompanion.update(performance.now() * 0.001);
     }
 
     updateCoords();
